@@ -1,4 +1,5 @@
-audio reactive led strip Atom Lite Esphome
+#Audio reactive led strip Atom Lite Esphome
+
 <img src="https://github.com/ananyevgv/led-strip/blob/main/atom.jpg" height="300" alt="Atom lite">
 
 https://github.com/zhujisheng/audio-reactive-led-strip

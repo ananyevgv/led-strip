@@ -92,7 +92,7 @@ light:
   - platform: fastled_clockless
     id: LedsStrip
     chipset: WS2812 #SK6812
-    pin: GPIO25 #27
+    pin: GPIO25 #26,32 разьем #27 встроеный LED
     num_leds: 64
     rgb_order: GRB
     name: "MUSIC LEDS"

@@ -15,7 +15,7 @@
 1. Скопируте папку ledstrip в /esphome/my_components
 2. Cкопируйите led-strip.yaml
 
-Основано на:
+# Основано на:
 
 https://github.com/zhujisheng/audio-reactive-led-strip
 

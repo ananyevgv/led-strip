@@ -12,14 +12,6 @@
 |CLK |GPIO19 |GND R or 3.3V L|
 |DAT |GPIO33 ||
 
-############################
-#MP34DT01  # 	ESP32        #
-#3V	       #  3V           #
-#GND	     #  GND (GPIO22) #
-#SEL	     #  GND or 3.3V  #(GPIO23)
-#CLK	     #  WS (GPIO19)  #
-#DAT	     #  IN (GPIO33)  #
-############################
 
 https://github.com/zhujisheng/audio-reactive-led-strip
 

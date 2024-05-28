@@ -15,6 +15,8 @@
 1. Скопируте папку ledstrip в /esphome/my_components
 2. Cкопируйите led-strip.yaml
 
+Основано на:
+
 https://github.com/zhujisheng/audio-reactive-led-strip
 
 https://github.com/EgeHe/esphome-led-effects/blob/main/staircase_led.yaml

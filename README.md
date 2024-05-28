@@ -2,6 +2,15 @@
 
 <img src="https://github.com/ananyevgv/led-strip/blob/main/atom.jpg" height="300" alt="Atom lite">
 
+############################
+#MP34DT01  # 	ESP32        #
+#3V	       #  3V           #
+#GND	     #  GND (GPIO22) #
+#SEL	     #  GND or 3.3V  #(GPIO23)
+#CLK	     #  WS (GPIO19)  #
+#DAT	     #  IN (GPIO33)  #
+############################
+
 https://github.com/zhujisheng/audio-reactive-led-strip
 
 https://github.com/EgeHe/esphome-led-effects/blob/main/staircase_led.yaml

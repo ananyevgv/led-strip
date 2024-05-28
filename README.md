@@ -2,6 +2,16 @@
 
 <img src="https://github.com/ananyevgv/led-strip/blob/main/atom.jpg" height="300" alt="Atom lite">
 
+
+# Распайка микрофона
+|MP34DT01         |Atom lite        |Примечание       | 
+|-----------------|-----------------|-----------------|
+|3V |3V ||
+|GND |GPIO22 ||
+|SEL |GPI23 |GND
+|CLK |GPIO19 |GND R or 3.3V L|
+|DAT |GPIO33 ||
+
 ############################
 #MP34DT01  # 	ESP32        #
 #3V	       #  3V           #

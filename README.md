@@ -1,5 +1,5 @@
 audio reactive led strip Atom Lite Esphome
-<img src="https://github.com/ananyevgv/led-strip/edit/main/atom.jpg" height="300" alt="Atom lite">
+<img src="https://github.com/ananyevgv/led-strip/blob/main/atom.jpg" height="300" alt="Atom lite">
 
 https://github.com/zhujisheng/audio-reactive-led-strip
 https://github.com/EgeHe/esphome-led-effects/blob/main/staircase_led.yaml

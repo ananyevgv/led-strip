@@ -1,0 +1,146 @@
+addressable_lambda:
+  name: "Aurora"
+  update_interval: 20ms
+  lambda: |-
+   // Update your setup info here
+   #define UPDATE_INTERVAL_SECONDS 0.02f  // 20ms
+   #define LEDS_PER_METER 30
+            
+    // Aurora effect parameters, adjust to your liking
+    #define BASE_COLOR Color(0, 128, 0)
+    #define SIMULTANEOUS_EFFECTS 2
+    #define EFFECT_DURATION_MIN_SECONDS 20.0f
+    #define EFFECT_DURATION_MAX_SECONDS 40.0f
+    #define EFFECT_MIN_WIDTH_METERS 1.5f
+    #define EFFECT_MAX_WIDTH_METERS 3.5f
+    #define EFFECT_SPEED_M_PER_S_MIN -0.1f  // Negative value => allow effect moving to other direction
+    #define EFFECT_SPEED_M_PER_S_MAX 0.1f
+            
+    // Convenience calculations, do not touch
+    #define EFFECT_MIN_WIDTH (EFFECT_MIN_WIDTH_METERS * (float)LEDS_PER_METER)
+    #define EFFECT_MAX_WIDTH (EFFECT_MAX_WIDTH_METERS * (float)LEDS_PER_METER)
+    #define EFFECT_DURATION_INTERVALS_MAX ((1.0f / UPDATE_INTERVAL_SECONDS) * EFFECT_DURATION_MAX_SECONDS)
+    #define EFFECT_DURATION_INTERVALS_MIN ((1.0f / UPDATE_INTERVAL_SECONDS) * EFFECT_DURATION_MIN_SECONDS)
+    #define FADE_SPEED_MIN ((1.0f / EFFECT_DURATION_INTERVALS_MAX) * 2.0f)
+    #define FADE_SPEED_MAX ((1.0f / EFFECT_DURATION_INTERVALS_MIN) * 2.0f)
+    #define EFFECT_SPEED_LEDS_PER_S_MIN (EFFECT_SPEED_M_PER_S_MIN * LEDS_PER_METER)
+    #define EFFECT_SPEED_LEDS_PER_S_MAX (EFFECT_SPEED_M_PER_S_MAX * LEDS_PER_METER)
+    #define EFFECT_MOVE_SPEED_MIN (EFFECT_SPEED_LEDS_PER_S_MIN * UPDATE_INTERVAL_SECONDS)
+    #define EFFECT_MOVE_SPEED_MAX (EFFECT_SPEED_LEDS_PER_S_MAX * UPDATE_INTERVAL_SECONDS)
+    
+    // Aurora effect states, do not touch
+    #define EFFECT_PHASE_FADE_IN   0
+    #define EFFECT_PHASE_FADE_OUT  1
+    #define EFFECT_PHASE_COMPLETED 2
+            
+    // Constants
+    static Color aurora_colors[6];
+            
+    // Effect variables
+    static Color effect_colors[SIMULTANEOUS_EFFECTS];
+    static float effect_centers[SIMULTANEOUS_EFFECTS];
+    static float effect_widths[SIMULTANEOUS_EFFECTS];
+    static float fade_speeds[SIMULTANEOUS_EFFECTS];
+    static float color_strengths[SIMULTANEOUS_EFFECTS];
+    static uint8_t effect_phases[SIMULTANEOUS_EFFECTS];
+    static float move_speeds[SIMULTANEOUS_EFFECTS];
+                        
+    if (initial_run) {
+      // Possible effect colors.
+      // Effect color is picked randomly from the list
+      aurora_colors[0] = Color(200, 50, 0);
+      aurora_colors[1] = Color(200, 0, 50);
+      aurora_colors[2] = Color(0, 200, 100);
+      aurora_colors[3] = Color(100, 200, 0);
+      aurora_colors[4] = Color(50, 0, 200);
+      aurora_colors[5] = Color(0, 50, 200);
+    
+      // Reset all effects on next run
+      for (uint8_t i=0; i < SIMULTANEOUS_EFFECTS; i++) {
+      effect_phases[i] = EFFECT_PHASE_COMPLETED;
+      }
+            
+      // "Background" color for the effects
+      it.all() = BASE_COLOR;
+        return;
+    }
+            
+    Color new_colors[it.size()];
+    for (uint16_t i=0; i < it.size(); i++) {
+      new_colors[i] = BASE_COLOR;
+    }
+
+    for (uint16_t i=0; i < it.size(); i++) {
+      for (uint8_t e_idx=0; e_idx < SIMULTANEOUS_EFFECTS; e_idx++) {
+        float brightness;
+        float dist_from_effect;
+        uint8_t gradient;
+            
+        // Effect should be reset before applying
+        if (effect_phases[e_idx] == EFFECT_PHASE_COMPLETED) {
+          continue;
+        }
+                
+        // Apply effect to current led
+        dist_from_effect = fabs(effect_centers[e_idx] - (float)i);
+        if (dist_from_effect > effect_widths[e_idx]) {
+          continue;
+        }
+        brightness = pow(1.0f - (dist_from_effect / effect_widths[e_idx]), 2);
+        gradient = 255.0f * color_strengths[e_idx] * brightness;
+        new_colors[i] = new_colors[i].gradient(effect_colors[e_idx], gradient);
+      }
+    }
+            
+    // Move effects
+    for (uint8_t e_idx=0; e_idx < SIMULTANEOUS_EFFECTS; e_idx++) {
+      effect_centers[e_idx] += move_speeds[e_idx];
+    }
+            
+    // Update effect state
+    for (uint16_t e_idx=0; e_idx < SIMULTANEOUS_EFFECTS; e_idx++) {
+      switch (effect_phases[e_idx]) {
+      case EFFECT_PHASE_FADE_IN:
+        color_strengths[e_idx] += fade_speeds[e_idx];
+        if (color_strengths[e_idx] >= 1.0f) {
+          color_strengths[e_idx] = 1.0f;
+          effect_phases[e_idx] = EFFECT_PHASE_FADE_OUT;
+        }
+        break;
+      case EFFECT_PHASE_FADE_OUT:
+      // In this phase the effect color is weakening
+        color_strengths[e_idx] -= fade_speeds[e_idx];
+        if (color_strengths[e_idx] <= 0.0f) {
+          color_strengths[e_idx] = 0.0f;
+          effect_phases[e_idx] = EFFECT_PHASE_COMPLETED;
+        }
+        break;
+      case EFFECT_PHASE_COMPLETED:
+      default:
+        {
+          // When effect is completed, generate new random effect
+          uint32_t rand = random_uint32();
+          effect_colors[e_idx] = aurora_colors[rand % 6];
+          effect_widths[e_idx] = (random_float() * (EFFECT_MAX_WIDTH - EFFECT_MIN_WIDTH)) + EFFECT_MIN_WIDTH;
+          effect_centers[e_idx] = random_float() * (float)it.size();
+          move_speeds[e_idx] = (random_float() * (EFFECT_MOVE_SPEED_MAX - EFFECT_MOVE_SPEED_MIN)) + EFFECT_MOVE_SPEED_MIN;
+          fade_speeds[e_idx] = (random_float() * (FADE_SPEED_MAX - FADE_SPEED_MIN)) + FADE_SPEED_MIN;
+          color_strengths[e_idx] = 0.0f;
+          effect_phases[e_idx] = EFFECT_PHASE_FADE_IN;
+          break;
+          }
+        }
+        color_strengths[e_idx] = max(min(1.0f, color_strengths[e_idx]), 0.0f);
+              
+        // Check if effect is outside of visible area
+        if ( (effect_centers[e_idx] - effect_widths[e_idx]) > it.size()) {
+          effect_phases[e_idx] = EFFECT_PHASE_COMPLETED;
+          } else if ((effect_centers[e_idx] + effect_widths[e_idx]) < 0) {
+          effect_phases[e_idx] = EFFECT_PHASE_COMPLETED;
+          }
+        }
+            
+        // Apply new colors to the led strip
+       for (uint16_t i=0; i < it.size(); i++) {
+         it[i] = new_colors[i];
+        }

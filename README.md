@@ -12,6 +12,8 @@
 |CLK |GPIO19 |GND R or 3.3V L|
 |DAT |GPIO33 ||
 
+1. Скопируте папку ledstrip в /esphome/my_components
+2. Cкопируйите led-strip.yaml
 
 https://github.com/zhujisheng/audio-reactive-led-strip
 

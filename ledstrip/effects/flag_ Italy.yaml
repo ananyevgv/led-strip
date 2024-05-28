@@ -1,0 +1,25 @@
+addressable_lambda:
+ name: "Flag - Italy"
+ lambda: |-
+   // Define the 2D array representing the pattern
+   static const char array_pattern[1][64] = {"GGGGGGGGGGGGGGGGWWWWWWWWWWWWWWWWRRRRRRRRRRRRRRRR"};
+   static const int startPos = (int)((it.size() - sizeof(array_pattern[0])) / 2);  // Find the start, which may be negative
+   static const int length = sizeof(array_pattern[0]) < it.size() ? sizeof(array_pattern[0]) : it.size();
+   int currentRow;
+    // Clear all other LEDs once
+    if (initial_run) {
+      it.all() = Color::BLACK;
+    }
+
+    // Iterate only the ones needing change
+    for (int i = 0; i < length; i++) {
+      if (i + startPos >= 0) {
+        switch (array_pattern[currentRow][i]) {
+          case 'R': it[i + startPos] = Color(255, 0, 0);; break;
+          case 'G': it[i + startPos] = Color(0, 255,0); break;
+          case 'W': it[i + startPos] = Color::WHITE; break;
+          default: it[i + startPos] = Color::BLACK; break;
+        }
+      }
+    }
+  

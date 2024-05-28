@@ -1,0 +1,11 @@
+addressable_lambda:
+  name: "Pattern - 75% Three"
+  lambda: |-
+    const char* pattern = "XXX ";
+    for (int i = 0; i < it.size(); i++) {
+      if (pattern[i % strlen(pattern)] == 'X') {
+        it[i] = current_color;
+      } else {
+        it[i] = Color::BLACK;
+      }
+    }

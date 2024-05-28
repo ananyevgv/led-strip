@@ -1,0 +1,13 @@
+lambda:
+    name: randomflicker
+    update_interval: 200 ms
+    lambda: |-
+      auto call = id(LedsStrip).turn_on(); //put the id for your light in here
+      float r = random_float() * 2.0f - 1.0f; 
+      r =  r * r * r;
+      call.set_transition_length(r);
+      //static double br=id(global_brightness);
+      call.set_brightness(0.7 + r/10);
+      call.set_publish(false);
+      call.set_save(false);
+      call.perform();

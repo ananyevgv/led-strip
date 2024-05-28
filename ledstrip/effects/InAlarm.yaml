@@ -1,0 +1,35 @@
+strobe:
+  name: In Alarm
+  colors:
+    - state: True
+      red: 100%
+      blue: 0%
+      green: 0%
+      white: 0%
+      duration: 150ms
+    - state: False
+      duration: 100ms
+    - state: True
+      red: 100%
+      blue: 0%
+      green: 0%
+      white: 0%  
+      duration: 150ms
+    - state: False
+      duration: 100ms
+    - state: True
+      red: 0%
+      blue: 100%
+      green: 0%
+      white: 0%
+      duration: 150ms
+    - state: False
+      duration: 100ms
+    - state: True
+      red: 0%
+      blue: 100%
+      green: 0%
+      white: 0%
+      duration: 150ms
+    - state: False
+      duration: 100ms  

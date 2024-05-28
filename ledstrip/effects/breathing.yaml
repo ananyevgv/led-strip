@@ -1,0 +1,19 @@
+lambda:
+  name: Breathing
+  update_interval: 16s
+  lambda: |-
+    static int state = 0;
+    static int color = 1;
+    auto call = id(LedsStrip).turn_on(); //the id of your light
+    call.set_transition_length(15000);
+    if (state == 0) {
+      call.set_brightness(1.0);
+    }
+    else if (state == 1) {
+      call.set_brightness(0.01);
+    }
+    call.perform();
+    state ++;
+    if (state == 2){
+      state = 0;
+    }

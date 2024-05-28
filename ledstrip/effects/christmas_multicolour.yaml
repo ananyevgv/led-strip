@@ -1,0 +1,38 @@
+addressable_lambda:
+  name: "Christmas Tree - Multicolour"
+  update_interval: 0.1s
+  lambda: |-
+    static int cycle_duration = 5000;  // Set the duration for a full fade cycle (in milliseconds)
+    const float fade_speed = 0.20; // Set the fade speed
+
+    const int colorPairs[3][2][3] = {
+      {{255, 0, 0}, {0, 0, 255}},      // Red and Blue
+      {{0, 255, 0}, {255, 255, 0}},    // Green and Yellow
+      {{0, 255, 0}, {255, 127, 0}}   // Green and Orange
+    };
+
+    int cycleIndex = (esp_timer_get_time() / 1000) % (15 * cycle_duration); // 15 cycles with 10 fast and 5 slow for each color pair
+
+    int pairIndex = cycleIndex / cycle_duration;
+    int fade = cycleIndex % cycle_duration;
+
+    const int *currentColorPair = colorPairs[pairIndex % 3][0];
+    const int *nextColorPair = colorPairs[pairIndex % 3][1];
+
+    float fadeDuration = (pairIndex % 15) < 10 ? cycle_duration : cycle_duration * fade_speed;
+    float brightness = sin((fade * 2 * M_PI) / fadeDuration) * 0.5 + 0.5;
+
+    for (int i = 0; i < it.size(); i++) {
+      int red = (1 - brightness) * currentColorPair[0];
+      int green = (1 - brightness) * currentColorPair[1];
+      int blue = (1 - brightness) * currentColorPair[2];
+
+      if (i % 2 == 0) {
+        red = brightness * nextColorPair[0];
+        green = brightness * nextColorPair[1];
+        blue = brightness * nextColorPair[2];
+      }
+
+      it[i] = Color(red, green, blue);
+    }
+    

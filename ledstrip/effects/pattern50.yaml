@@ -1,0 +1,10 @@
+addressable_lambda:
+  name: "Pattern - 50% One"
+  lambda: |-
+    for (int i = 0; i < it.size(); i++) {
+      if (i % 2 == 1) {
+        it[i] = current_color;
+      } else {
+        it[i] = Color::BLACK;
+      }
+    }

@@ -1,0 +1,20 @@
+lambda:
+  name: WTF
+  update_interval: 200ms
+  lambda: |-
+    auto call = id(LedsStrip).turn_on(); //put the id for your light in here
+    call.set_transition_length(200);
+    call.set_white(0.0);
+    call.set_brightness((rand() % 255 + 1) / 255.0);
+    call.set_color_temperature(rand() % 2 == 0 ? 0: 512);
+    call.perform();
+
+
+
+     
+     
+
+     
+     
+     
+  

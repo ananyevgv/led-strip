@@ -1,0 +1,24 @@
+addressable_lambda:
+  name: Sunrise
+  update_interval: 1s
+  lambda: |-
+    static int step = 0;
+    if (step < 256) {
+      for (int i = 0; i < it.size(); i++) {
+        it[i] = ESPColor(255, step, 0);
+      }
+    } else if (step < 512) {
+      for (int i = 0; i < it.size(); i++) {
+        it[i] = ESPColor(255, 255, step - 256);
+      }
+    } else if (step < 768) {
+      for (int i = 0; i < it.size(); i++) {
+        it[i] = ESPColor(255 - (step - 512), 255, 255);
+      }
+    } else {
+      for (int i = 0; i < it.size(); i++) {
+        it[i] = ESPColor(255, 221, 180);  // Warm white
+      }
+      step = 768;  // Keep step at 768 to maintain the warm white color
+    }
+    step++;

@@ -1,0 +1,28 @@
+addressable_lambda:
+  name: "Christmas Tree - Fading (normal then slow)"
+  update_interval: 0.1s
+  lambda: |-
+    const static int cycle_duration = 5000;       // Set the duration for a full fade cycle (in milliseconds)
+    const static float slow_cycle_factor = 0.25;  // The factor for the slow cycles
+
+    const int redColor[3] = {255, 0, 18};
+    const int greenColor[3] = {0, 179, 44};
+
+    int fade = (esp_timer_get_time() / 1000) % (15 * cycle_duration);            // 15 cycles in total
+    float fade_speed = (fade / cycle_duration) < 10 ? 1.0 : slow_cycle_factor;   // Fade speed based on the cycle count
+
+    float brightness = sin((fade * 2 * M_PI) / (cycle_duration * fade_speed)) * 0.5 + 0.5; // Sinusoidal fade function
+
+    for (int i = 0; i < it.size(); i++) {
+      int red = (1 - brightness) * redColor[0];
+      int green = (1 - brightness) * redColor[1];
+      int blue = (1 - brightness) * redColor[2];
+
+      if (i % 2 == 0) {
+        red = brightness * greenColor[0];
+        green = brightness * greenColor[1];
+        blue = brightness * greenColor[2];
+      }
+
+      it[i] = Color(red, green, blue);
+    }

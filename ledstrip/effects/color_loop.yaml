@@ -1,0 +1,29 @@
+addressable_lambda:
+  name: "Color loop"
+  update_interval: 10ms
+  lambda: |-
+   // it.size() - Number of LEDs
+    // it[num] - Access the LED at index num.
+    // Set the LED at num to the given r, g, b values
+    // it[it.size()] = Color(r, g, b);
+    // Get the color at index num (Color instance)
+    // it[num].get();
+
+    static uint16_t i = 0;
+    static uint16_t color = 0;
+    static Color new_random_color = Color::random_color();
+
+    if (color == 0) {
+      it[i] = new_random_color;
+    } 
+
+    i++;
+    if (i >= it.size()) {
+      i = 0;
+      color++;
+    }
+
+    if (color >= 1) {
+      color = 0;
+      new_random_color = Color::random_color();
+    }

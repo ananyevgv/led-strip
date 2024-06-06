@@ -8,9 +8,9 @@
 |-----------------|-----------------|-----------------|
 |3V  |3V |3.3 Volt|
 |GND |GPIO22 |GND|
-|SEL |GPIO23 |WS|
+|SEL |GPIO23 |WS I2S|
 |CLK |GPIO19 |GND R or 3.3V L|
-|DAT |GPIO33 |PDM_DATA|
+|DAT |GPIO33 |PDM_DATA I2S|
 
 1. Скопируте папку ledstrip в /esphome/my_components
 2. Cкопируйите led-strip.yaml

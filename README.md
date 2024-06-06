@@ -8,7 +8,7 @@
 |-----------------|-----------------|-----------------|
 |3V |3V ||
 |GND |GPIO22 ||
-|SEL |GPIO23 |GND
+|SEL |GPIO23 |WS|
 |CLK |GPIO19 |GND R or 3.3V L|
 |DAT |GPIO33 ||
 

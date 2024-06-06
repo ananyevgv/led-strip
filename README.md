@@ -6,11 +6,11 @@
 # Распайка микрофона
 |MP34DT01         |Atom lite        |Примечание       | 
 |-----------------|-----------------|-----------------|
-|3V |3V ||
-|GND |GPIO22 ||
+|VCC |3V |3V|
+|GND |GPIO22 |GND|
 |SEL |GPIO23 |WS|
 |CLK |GPIO19 |GND R or 3.3V L|
-|DAT |GPIO33 ||
+|DAT |GPIO33 |PDM_DATA|
 
 1. Скопируте папку ledstrip в /esphome/my_components
 2. Cкопируйите led-strip.yaml

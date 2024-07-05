@@ -60,10 +60,39 @@ binary_sensor:
   - platform: gpio
     name: "Led"
     pin: GPIO39
-    on_press:
+    on_click:
       then:
         - light.toggle: LedsStrip
+    on_double_click:
+      then:
+        - lambda: !<!lambda> |-
+            uint32_t total = id(LedsStrip)->get_effects().size();
+            uint32_t curr_idx = 0;
+            uint32_t i = 0;
+            std::string curr_effect = id(LedsStrip)->get_effect_name();
+            auto call = id(LedsStrip)->turn_on();
 
+            // set first effect in list
+            if (strcasecmp(curr_effect.c_str(), "none") == 0) {
+              call.set_effect(1);
+              call.perform();
+
+              return;
+            }
+
+            for (auto *effect : id(LedsStrip)->get_effects()) {
+              i++;
+              if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
+                curr_idx = i;
+            }
+
+            if (curr_idx == total) {
+              call.set_effect(0);
+            } else {
+              call.set_effect(curr_idx + 1);
+            }
+
+            call.perform();
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -347,8 +376,10 @@ light:
       - !include my_components/ledstrip/effects/RGB_Breathing.yaml
       - !include my_components/ledstrip/effects/WTF.yaml
       - !include my_components/ledstrip/effects/aurora.yaml
+      - !include my_components/ledstrip/effects/blue_scan.yaml
       - !include my_components/ledstrip/effects/bluez.yaml
       - !include my_components/ledstrip/effects/breathing.yaml
+      - !include my_components/ledstrip/effects/breathing_red.yaml
       - !include my_components/ledstrip/effects/candy_cane.yaml
       - !include my_components/ledstrip/effects/chill_mode.yaml
       - !include my_components/ledstrip/effects/chill_vibrant.yaml
@@ -359,6 +390,7 @@ light:
       - !include my_components/ledstrip/effects/christmas_static.yaml
       - !include my_components/ledstrip/effects/color_loop.yaml
       - !include my_components/ledstrip/effects/disco.yaml
+      - !include my_components/ledstrip/effects/expo.yaml
       - !include my_components/ledstrip/effects/fire.yaml
       - !include my_components/ledstrip/effects/fireplace.yaml
       - !include my_components/ledstrip/effects/flag_russian.yaml

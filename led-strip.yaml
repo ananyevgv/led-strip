@@ -11,9 +11,11 @@
 substitutions:
   devicename: led-strip
   upper_devicename: led-strip
-
+  device_description: Гирлянда беседка
+  
 esphome:
   name: ${devicename}
+  comment: "${device_description}"
   includes:
     - my_components/ledstrip/led/music_leds_esphome.h
     - my_components/ledstrip/led/FFT.h
@@ -26,6 +28,12 @@ esp32:
   framework:
     type: arduino
 
+external_components:
+  - source:
+      type: git
+      url: https://github.com/KaufHA/common
+    components: [ ddp ]
+
 #logger:
 
 api:
@@ -33,7 +41,8 @@ api:
 
 ota:
   password: !secret ota_pass
-
+  platform: esphome
+  
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -41,16 +50,28 @@ wifi:
 e131:
   method: multicast
 wled:
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${devicename} IP Address"
+      icon: mdi:ip
+    ssid:
+      name: "${devicename} SSID"
+      icon: mdi:access-point-network
+    mac_address:
+      name: "${devicename} Mac"
+      icon: mdi:lan
   
 sensor:
   - platform: wifi_signal
-    name: ${upper_devicename} Wifi
+    name: ${devicename} Wifi
     update_interval: 60s  
     id: wifi_signal_db
     entity_category: "diagnostic"
   - platform: copy # Reports the WiFi signal strength in %
     source_id: wifi_signal_db
-    name: ${upper_devicename} WiFi Percent
+    name: ${devicename} WiFi Percent
     filters:
       - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
     unit_of_measurement: "%"
@@ -63,6 +84,7 @@ binary_sensor:
     on_click:
       then:
         - light.toggle: LedsStrip
+
     on_double_click:
       then:
         - lambda: !<!lambda> |-
@@ -93,22 +115,10 @@ binary_sensor:
             }
 
             call.perform();
-text_sensor:
-  - platform: wifi_info
-    ip_address:
-      name: ${upper_devicename} IP Address
-      icon: mdi:ip
-    ssid:
-      name: ${upper_devicename} SSID
-      icon: mdi:access-point-network
-    mac_address:
-      name: ${upper_devicename} Mac
-      icon: mdi:lan
-
 button:
   - platform: restart
-    name: "${devicename} Restart"
-    
+    name: "${devicename} restart"
+
 switch:
   - platform: gpio
     pin:
@@ -131,24 +141,17 @@ switch:
     icon: mdi:microphone
     restore_mode: ALWAYS_ON
 #Please note that the WS is connected to the CLK of the microphone! You can select if you receive only data on the left or right by setting SEL to high or low.
+ddp:
 
 light:
   - platform: fastled_clockless
     id: LedsStrip
     chipset: WS2812 #SK6812
-    pin: GPIO25 #26,32 разьем #27 встроеный LED
-    num_leds: 64
-    rgb_order: GRB
+    pin: GPIO26 #26,32 разьем #27 встроеный LED
+    num_leds: 50
+    rgb_order: RGB
     name: "MUSIC LEDS"
     effects:
-      - wled:
-          # port: 21324
-          # blank_on_start: True
-          # sync_group_mask: 0
-      - e131:
-          universe: 1
-          channels: RGB
-
 #random     
       - random:
       # Customize parameters
@@ -371,14 +374,16 @@ light:
               green: 0%
               blue: 0%
 
+
 #!include        
       - !include my_components/ledstrip/effects/InAlarm.yaml
-      - !include my_components/ledstrip/effects/RGB_Breathing.yaml
       - !include my_components/ledstrip/effects/WTF.yaml
       - !include my_components/ledstrip/effects/aurora.yaml
       - !include my_components/ledstrip/effects/blue_scan.yaml
       - !include my_components/ledstrip/effects/bluez.yaml
       - !include my_components/ledstrip/effects/breathing.yaml
+      - !include my_components/ledstrip/effects/breathing2.yaml
+      - !include my_components/ledstrip/effects/breathing_rgb.yaml
       - !include my_components/ledstrip/effects/breathing_red.yaml
       - !include my_components/ledstrip/effects/candy_cane.yaml
       - !include my_components/ledstrip/effects/chill_mode.yaml
@@ -467,9 +472,29 @@ light:
           lambda: |-
             music_leds.ShowFrame(MODE_SPECTRUM, &it);
 
+
+      - wled:
+          # port: 21324
+          # blank_on_start: True
+          # sync_group_mask: 0
+      - e131:
+          universe: 1
+          channels: RGB
+      - ddp:
+          name: DDP
+          timeout: 10s
+          disable_gamma: true
+          brightness_scaling: none
+
+      - addressable_ddp:
+          name: Addressable DDP
+          timeout: 10s
+          disable_gamma: true
+          brightness_scaling: none
+          
 web_server:
-  version: 3
   port: 80
+  version: 3
   auth:
     username: !secret web_user
     password: !secret web_pass  

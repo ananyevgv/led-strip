@@ -376,6 +376,7 @@ light:
 
 
 #!include        
+      - !include my_components/ledstrip/effects/2.yaml    
       - !include my_components/ledstrip/effects/InAlarm.yaml
       - !include my_components/ledstrip/effects/WTF.yaml
       - !include my_components/ledstrip/effects/aurora.yaml
@@ -385,6 +386,7 @@ light:
       - !include my_components/ledstrip/effects/breathing2.yaml
       - !include my_components/ledstrip/effects/breathing_rgb.yaml
       - !include my_components/ledstrip/effects/breathing_red.yaml
+      - !include my_components/ledstrip/effects/candles.yaml
       - !include my_components/ledstrip/effects/candy_cane.yaml
       - !include my_components/ledstrip/effects/chill_mode.yaml
       - !include my_components/ledstrip/effects/chill_vibrant.yaml
@@ -392,7 +394,9 @@ light:
       - !include my_components/ledstrip/effects/christmas_fading.yaml
       - !include my_components/ledstrip/effects/christmas_fadingN.yaml
       - !include my_components/ledstrip/effects/christmas_multicolour.yaml
+      - !include my_components/ledstrip/effects/christmas_red_green_white.yaml
       - !include my_components/ledstrip/effects/christmas_static.yaml
+      - !include my_components/ledstrip/effects/color_change.yaml
       - !include my_components/ledstrip/effects/color_loop.yaml
       - !include my_components/ledstrip/effects/disco.yaml
       - !include my_components/ledstrip/effects/expo.yaml
@@ -401,6 +405,7 @@ light:
       - !include my_components/ledstrip/effects/flag_russian.yaml
       - !include my_components/ledstrip/effects/flag_ Italy.yaml
       - !include my_components/ledstrip/effects/flames.yaml
+      - !include my_components/ledstrip/effects/gold_glitter.yaml
       - !include my_components/ledstrip/effects/lightning.yaml
       - !include my_components/ledstrip/effects/patern.yaml
       - !include my_components/ledstrip/effects/pattern20.yaml
@@ -412,7 +417,10 @@ light:
       - !include my_components/ledstrip/effects/pattern75.yaml  
       - !include my_components/ledstrip/effects/police_scroll.yaml
       - !include my_components/ledstrip/effects/rainbow_row.yaml
+      - !include my_components/ledstrip/effects/random_shift.yaml
       - !include my_components/ledstrip/effects/random_flicker.yaml
+      - !include my_components/ledstrip/effects/snowflack.yaml
+      - !include my_components/ledstrip/effects/static_rainbow.yaml
       - !include my_components/ledstrip/effects/sunrise.yaml
       - !include my_components/ledstrip/effects/vesuvius.yaml
       - !include my_components/ledstrip/effects/wheel_of_color.yaml

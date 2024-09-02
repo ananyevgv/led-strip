@@ -37,4 +37,8 @@ https://github.com/jlboygenius/ESPHome_GEColorEffects
 
 https://github.com/tallSequoia/ESPHomeLights
 
+https://community.home-assistant.io/t/ws2811-ws2812-ideas-for-christmas/259262/3
+
+https://community.home-assistant.io/t/share-your-esphome-light-effects/250294
+
 https://github.com/pschatzmann/arduino-audio-tools/wiki/External-ADC

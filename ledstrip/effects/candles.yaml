@@ -1,0 +1,68 @@
+addressable_lambda:
+  name: "Candles"
+  update_interval: 16ms
+  lambda: |-
+    static int *target=NULL;
+    static int *curr=NULL;
+    static int *inc=NULL;
+    static int *state=NULL;
+    static int *startState=NULL;
+    static int *stateLen=NULL;
+    static ESPColor *targetColor=NULL;
+    static ESPColor *currColor=NULL;
+          
+    if(state==NULL) {
+      target=new int[it.size()];
+      curr=new int[it.size()];
+      inc=new int[it.size()];
+      state=new int[it.size()];
+      startState=new int[it.size()];
+      stateLen=new int[it.size()];
+      targetColor=new ESPColor[it.size()];
+      currColor=new ESPColor[it.size()];
+    }
+    if(initial_run) {
+      for(int i=0; i < it.size(); i++) {
+        curr[i]=0; target[i]=0; // curr==target => init
+        inc[i]=0; state[i]=0; startState[i]=0; stateLen[i]=0;
+        currColor[i] = it[i].get();
+        targetColor[i] = it[i].get();
+      }
+    }
+    for (int i = 0; i < it.size() ; i++) {
+      if(state[i] == 0 || state[i] > 500) {
+        state[i] = random(500); // random delay till first flicker
+        target[i] = curr[i]; // init new target
+      }
+      // set new target if target reached
+      if(state[i] == 450 || (curr[i] == target[i] && state[i] > 450)) { // 10% is disturbed candle
+        target[i]=random(50, 255);
+        inc[i]=random(50)+1;
+        currColor[i]=targetColor[i];
+        targetColor[i]=current_color+ESPColor::random_color()*random(100);
+        stateLen[i]=abs(target[i]-curr[i]) / inc[i];
+        startState[i]=state[i];
+      } else if(curr[i] == target[i]) { // slow changing candle
+        target[i]=random(80, 160);
+        inc[i]=random(10)+1;
+        currColor[i]=targetColor[i];
+        targetColor[i]=current_color+ESPColor::random_color()*random(40);
+        stateLen[i]=abs(target[i]-curr[i]) / inc[i];
+        startState[i]=state[i];
+      }
+      if(curr[i] > target[i]) {
+        curr[i]-=min(inc[i], curr[i]-target[i]);
+        } else {
+        curr[i]+=min(inc[i], target[i]-curr[i]);
+      }
+      // ESP_LOGD(TAG, "candle [%d]3", i); delay(10);
+      int factor=255;
+      if(stateLen[i] > 0) factor = 255 * (state[i] - startState[i]) / (stateLen[i]);
+      ESPColor c=currColor[i]*(factor*(curr[i]+1)/256) + targetColor[i]*((255-factor)*(curr[i]+1)/256);
+      it[i]=c;
+      // it[i]=it[i]*curr[i];
+      state[i]++;
+      // if(i==0) ESP_LOGD(TAG, "candle [0]=> t:%d c:%d inc:%d state:%d startState:%d stateLen:%d factor:%d cc:%02x tc:%02x out=%02x", 
+      //  target[i], curr[i], inc[i], state[i], startState[i], stateLen[i], 
+      //  factor, currColor[i].red, targetColor[i].red, c.red);
+    }

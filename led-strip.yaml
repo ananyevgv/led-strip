@@ -80,12 +80,12 @@ sensor:
 binary_sensor:
   - platform: gpio
     name: "Led"
-    pin: GPIO39
+    pin:
+      number: GPIO39
+      inverted: true
+ #   on_click:
+ #       - light.toggle: LedsStrip
     on_click:
-      then:
-        - light.toggle: LedsStrip
-
-    on_double_click:
       then:
         - lambda: !<!lambda> |-
             uint32_t total = id(LedsStrip)->get_effects().size();

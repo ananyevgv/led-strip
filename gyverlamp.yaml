@@ -1,0 +1,1393 @@
+###########################
+#MP34DT01  # 	ESP32        #
+#3V	       #  3V           #
+#GND	     #  GND (GPIO22) #
+#SEL	     #  GND or 3.3V  #(GPIO23)
+#CLK	     #  WS (GPIO19)  #
+#DAT	     #  IN (GPIO33)  #
+#          # -	BCK        #
+############################
+substitutions:
+  devicename:  gyverlamp
+  upper_devicename:  gyverlamp
+  device_description:  gyverlamp
+  energy_method: left
+  update_interval: 3s
+  reboot_timeout: 0s
+  flagflip: "0"
+  color_correct_bright: "50%"
+  num_leds: "256"
+  type_leds: "GRB"                                 # порядок цветов на ленте. Если цвет отображается некорректно - меняйте. Начать можно с RGB
+  leds_current_limit: "3"                          # лимит по току в амперах, автоматически управляет яркостью (пожалей свой блок питания!) 0 - выключить лимит
+
+# Поправить в constants.h
+#define WIDTH                 (32U)                         // ширина матрицы
+#define HEIGHT                (8U)                          // высота матрицы
+#define MATRIX_TYPE           (0U)                          // тип матрицы: 0 - зигзаг, 1 - параллельная
+#define CONNECTION_ANGLE      (1U)                          // угол подключения: 0 - левый нижний, 1 - левый верхний, 2 - правый верхний, 3 - правый нижний
+#define STRIP_DIRECTION       (3U)                          // направление ленты из угла: 0 - вправо, 1 - вверх, 2 - влево, 3 - вниз
+
+  led_id:  gyverlamp
+  led_chipset: "WS2812" # WS2812 (same as 800KBPS)
+  pin_leds: "GPIO26"
+
+esphome:
+  name: ${devicename}
+  comment: "${device_description}"
+  libraries:
+    - FastLED 
+  includes:
+    - my_components/fastled/gyver/light.h
+    - my_components/fastled/gyver/constants.h
+    - my_components/fastled/gyver/utility.h
+    - my_components/fastled/gyver/effect_ticker.h
+    - my_components/fastled/gyver/effects.h
+    - my_components/fastled/gyver/noise_effects.h
+    - my_components/fastled/gyver/gyver_lamp_esphome.h
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  password: !secret api_pass
+  reboot_timeout: ${reboot_timeout}
+
+ota:
+  password: !secret ota_pass
+  platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+packages:
+  led_power: !include packages/led_power.yaml
+
+
+number: 
+  - platform: template
+    name: ${devicename} Fastled Speed
+    min_value: 0 #!lambda "return (float) id(min_speed).state;"
+    max_value: 255 #!lambda |-
+      #return (float)id(speed_max).state;
+    step: 1
+    optimistic: true
+    id: fastled_speed
+    initial_value: 128
+    mode: slider
+    entity_category: config
+    on_value: 
+    - if: 
+        condition:
+          lambda: return (id(speed_min).state > id(fastled_speed).state);
+        then:
+          - number.set: 
+              id: fastled_speed
+              value: !lambda "return id(speed_min).state;"
+        else: 
+          - if: 
+              condition:
+                lambda: return (id(speed_max).state < id(fastled_speed).state);
+              then:
+                - number.set: 
+                    id: fastled_speed
+                    value: !lambda "return id(speed_max).state;"
+
+  - platform: template
+    name: ${devicename} Fastled Variant
+    min_value: 0
+    max_value: 255
+    step: 1
+    optimistic: true
+    id: fastled_variant
+    initial_value: 128
+    mode: slider
+    entity_category: config
+    on_value: 
+    - if: 
+        condition:
+          lambda: return (id(variant_min).state > id(fastled_variant).state);
+        then:
+          - number.set: 
+              id: fastled_variant
+              value: !lambda "return id(variant_min).state;"
+        else: 
+          - if: 
+              condition:
+                lambda: return (id(variant_max).state < id(fastled_variant).state);
+              then:
+                - number.set: 
+                    id: fastled_variant
+                    value: !lambda "return id(variant_max).state;"
+ 
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${devicename} IP Address"
+      icon: mdi:ip
+    ssid:
+      name: "${devicename} SSID"
+      icon: mdi:access-point-network
+    mac_address:
+      name: "${devicename} Mac"
+      icon: mdi:lan
+  
+sensor:
+  - platform: wifi_signal
+    name: "${devicename} Wifi"
+    update_interval: 60s  
+    id: wifi_signal_db
+    entity_category: "diagnostic"
+  - platform: copy # Reports the WiFi signal strength in %
+    source_id: wifi_signal_db
+    name: "${devicename} WiFi Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+
+  - platform: template
+    name: ${devicename} speed_min
+    id: speed_min
+    lambda: "return 0;"
+    update_interval: never
+
+  - platform: template
+    name: ${devicename} speed_max
+    id: speed_max
+    lambda: "return 255;"
+    update_interval: never
+
+  - platform: template
+    name: ${devicename} variant_min
+    id: variant_min
+    lambda: "return 0;"
+    update_interval: never
+
+  - platform: template
+    name: ${devicename} variant_max
+    id: variant_max
+    lambda: "return 255;"
+    update_interval: never
+    
+binary_sensor:
+  - platform: gpio
+    name: "${devicename} Led"
+    pin:
+      number: 39
+      inverted: True
+    on_click:
+      then:
+        - lambda: !<!lambda> |-
+            uint32_t total = id(${led_id})->get_effects().size();
+            uint32_t curr_idx = 0;
+            uint32_t i = 0;
+            std::string curr_effect = id(${led_id})->get_effect_name();
+            auto call = id(${led_id})->turn_on();
+
+            // set first effect in list
+            if (strcasecmp(curr_effect.c_str(), "none") == 0) {
+              call.set_effect(1);
+              call.perform();
+
+              return;
+            }
+
+            for (auto *effect : id(${led_id})->get_effects()) {
+              i++;
+              if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
+                curr_idx = i;
+            }
+
+            if (curr_idx == total) {
+              call.set_effect(0);
+            } else {
+              call.set_effect(curr_idx + 1);
+            }
+            call.perform();
+
+button:
+  - platform: restart
+    name: "${devicename} restart"
+
+  - platform: template
+    name: "${devicename} next effect"
+    on_press:
+      then:
+        - lambda: !<!lambda> |-
+            uint32_t total = id(${led_id})->get_effects().size();
+            uint32_t curr_idx = 0;
+            uint32_t i = 0;
+            std::string curr_effect = id(${led_id})->get_effect_name();
+            auto call = id(${led_id})->turn_on();
+
+            // set first effect in list
+            if (strcasecmp(curr_effect.c_str(), "none") == 0) {
+              call.set_effect(1);
+              call.perform();
+
+              return;
+            }
+
+            for (auto *effect : id(${led_id})->get_effects()) {
+              i++;
+              if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
+                curr_idx = i;
+            }
+
+            if (curr_idx == total) {
+              call.set_effect(0);
+            } else {
+              call.set_effect(curr_idx + 1);
+            }
+            call.perform();
+
+light:
+  - platform: neopixelbus
+    id: ${led_id}
+    type: ${type_leds}
+    pin: ${pin_leds}
+    num_leds: ${num_leds}
+    name: ${upper_devicename}
+    color_correct: [$color_correct_bright, $color_correct_bright, $color_correct_bright]
+    variant: ${led_chipset}
+    effects:
+############################################## 
+# Бeлый cвeт
+############################################## 
+      - addressable_lambda:
+          name: Бeлый cвeт
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Бeлый cвeт");
+            }
+            gyver_lamp.ShowFrame(EFF_WHITE_COLOR, current_color, &it);
+            
+############################################## 
+# Цвeт
+##############################################  
+      - addressable_lambda:
+          name: Цвeт
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Цвeт");
+            }
+            gyver_lamp.ShowFrame(EFF_COLOR, current_color, &it);
+
+############################################## 
+# Cмeнa цвeтa
+############################################## 
+      - addressable_lambda:
+          name: Cмeнa цвeтa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Cмeнa цвeтa");
+            }
+            gyver_lamp.ShowFrame(EFF_COLORS, current_color, &it);
+            
+            
+############################################## 
+# Бeзyмиe
+############################################## 
+      - addressable_lambda:
+          name: Бeзyмиe
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Бeзyмиe");
+            }
+            gyver_lamp.ShowFrame(EFF_MADNESS, current_color, &it);
+            
+############################################## 
+# Oблaкa
+############################################## 
+      - addressable_lambda:
+          name: Oблaкa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Oблaкa");
+            }
+            gyver_lamp.ShowFrame(EFF_CLOUDS, current_color, &it);
+
+############################################## 
+# Лaвa
+############################################## 
+      - addressable_lambda:
+          name: Лaвa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Лaвa");
+            }
+            gyver_lamp.ShowFrame(EFF_LAVA, current_color, &it);
+            
+############################################## 
+# Плaзмa
+############################################## 
+      - addressable_lambda:
+          name: Плaзмa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Плaзмa");
+            }
+            gyver_lamp.ShowFrame(EFF_PLASMA, current_color, &it);
+            
+############################################## 
+# Paдyгa 3D
+############################################## 
+      - addressable_lambda:
+          name: Paдyгa 3D
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Paдyгa 3D");
+            }
+            gyver_lamp.ShowFrame(EFF_RAINBOW, current_color, &it);
+            
+############################################## 
+# Пaвлин
+############################################## 
+      - addressable_lambda:
+          name: Пaвлин
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пaвлин");
+            }
+            gyver_lamp.ShowFrame(EFF_RAINBOW_STRIPE, current_color, &it);
+            
+############################################## 
+# 3eбpa
+############################################## 
+      - addressable_lambda:
+          name: 3eбpa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "3eбpa");
+            }
+            gyver_lamp.ShowFrame(EFF_ZEBRA, current_color, &it);
+            
+############################################## 
+# Лec
+############################################## 
+      - addressable_lambda:
+          name: Лec
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Лec");
+            }
+            gyver_lamp.ShowFrame(EFF_FOREST, current_color, &it);
+            
+############################################## 
+# Oкeaн
+############################################## 
+      - addressable_lambda:
+          name: Oкeaн
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Oкeaн");
+            }
+            gyver_lamp.ShowFrame(EFF_OCEAN, current_color, &it);
+            
+         
+############################################## 
+# Пoпкopн
+############################################## 
+      - addressable_lambda:
+          name: Пoпкopн
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пoпкopн");
+            }
+            gyver_lamp.ShowFrame(EFF_POPCORN, current_color, &it);
+            
+############################################## 
+# Cпиpaли
+############################################## 
+      - addressable_lambda:
+          name: Cпиpaли
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Cпиpaли");
+            }
+            gyver_lamp.ShowFrame(EFF_SPIRO, current_color, &it);
+            
+############################################## 
+# Пpизмaтa
+##############################################  
+      - addressable_lambda:
+          name: Пpизмaтa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пpизмaтa");
+            }
+            gyver_lamp.ShowFrame(EFF_PRISMATA, current_color, &it);
+            
+############################################## 
+# Дымoвыe шaшки
+############################################## 
+      - addressable_lambda:
+          name: Дымoвыe шaшки
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Дымoвыe шaшки");
+            }
+            gyver_lamp.ShowFrame(EFF_SMOKEBALLS, current_color, &it);
+            
+       
+############################################## 
+# Oгoнь 2021
+############################################## 
+      - addressable_lambda:
+          name: Oгoнь 2021
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Oгoнь 2021");
+            }
+            gyver_lamp.ShowFrame(EFF_FIRE_2021, current_color, &it);
+            
+############################################## 
+# Tиxий oкeaн
+############################################## 
+      - addressable_lambda:
+          name: Tиxий oкeaн
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Tиxий oкeaн");
+            }
+            gyver_lamp.ShowFrame(EFF_PACIFIC, current_color, &it);
+            
+############################################## 
+# Teни
+############################################## 
+      - addressable_lambda:
+          name: Teни
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Teни");
+            }
+            gyver_lamp.ShowFrame(EFF_SHADOWS, current_color, &it);
+            
+############################################## 
+# ДHK
+############################################## 
+      - addressable_lambda:
+          name: ДHK
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "ДHK");
+            }
+            gyver_lamp.ShowFrame(EFF_DNA, current_color, &it);
+            
+############################################## 
+# Moтыльки
+############################################## 
+      - addressable_lambda:
+          name: Moтыльки
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Moтыльки");
+            }
+            gyver_lamp.ShowFrame(EFF_BUTTERFLYS, current_color, &it);
+            
+############################################## 
+# Лaмпa c мoтылькaми
+############################################## 
+      - addressable_lambda:
+          name: Лaмпa c мoтылькaми
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Лaмпa c мoтылькaми");
+            }
+            gyver_lamp.ShowFrame(EFF_BUTTERFLYS_LAMP, current_color, &it);
+            
+############################################## 
+# 3мeйки
+############################################## 
+      - addressable_lambda:
+          name: 3мeйки
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "3мeйки");
+            }
+            gyver_lamp.ShowFrame(EFF_SNAKES, current_color, &it);
+            
+############################################## 
+# Nexus
+############################################## 
+      - addressable_lambda:
+          name: Nexus
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Nexus");
+            }
+            gyver_lamp.ShowFrame(EFF_NEXUS, current_color, &it);
+            
+############################################## 
+# Шapы
+##############################################  
+      - addressable_lambda:
+          name: Шapы
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Шapы");
+            }
+            gyver_lamp.ShowFrame(EFF_SPHERES, current_color, &it);
+            
+############################################## 
+# Cинycoид
+############################################## 
+      - addressable_lambda:
+          name: Cинycoид
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Cинycoид");
+            }
+            gyver_lamp.ShowFrame(EFF_SINUSOID3, current_color, &it);
+            
+############################################## 
+# Meтaбoлз
+##############################################  
+      - addressable_lambda:
+          name: Meтaбoлз
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Meтaбoлз");
+            }
+            gyver_lamp.ShowFrame(EFF_METABALLS, current_color, &it);
+            
+############################################## 
+# Ceвepнoe cияниe
+############################################## 
+      - addressable_lambda:
+          name: Ceвepнoe cияниe
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Ceвepнoe cияниe");
+            }
+            gyver_lamp.ShowFrame(EFF_AURORA, current_color, &it);
+            
+############################################## 
+# Плaзмeннaя лaмпa
+############################################## 
+      - addressable_lambda:
+          name: Плaзмeннaя лaмпa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Плaзмeннaя лaмпa");
+            }
+            gyver_lamp.ShowFrame(EFF_SPIDER, current_color, &it);
+            
+############################################## 
+# Лaвoвaя лaмпa
+############################################## 
+      - addressable_lambda:
+          name: Лaвoвaя лaмпa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Лaвoвaя лaмпa");
+            }
+            gyver_lamp.ShowFrame(EFF_LAVALAMP, current_color, &it);
+            
+############################################## 
+# Жидкaя лaмпa
+############################################## 
+      - addressable_lambda:
+          name: Жидкaя лaмпa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Жидкaя лaмпa");
+            }
+            gyver_lamp.ShowFrame(EFF_LIQUIDLAMP, current_color, &it);
+            
+############################################## 
+# Жидкaя лaмпa
+############################################## 
+      - addressable_lambda:
+          name: Жидкaя лaмпa (auto)
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Жидкaя лaмпa (auto)");
+            }
+            gyver_lamp.ShowFrame(EFF_LIQUIDLAMP_AUTO, current_color, &it);
+            
+############################################## 
+# Kaпли нa cтeклe
+##############################################  
+      - addressable_lambda:
+          name: Kaпли нa cтeклe
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Kaпли нa cтeклe");
+            }
+            gyver_lamp.ShowFrame(EFF_DROPS, current_color, &it);
+            
+############################################## 
+# Maтpицa
+############################################## 
+      - addressable_lambda:
+          name: Maтpицa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Maтpицa");
+            }
+            gyver_lamp.ShowFrame(EFF_MATRIX, current_color, &it);
+            
+############################################## 
+# Oгoнь 2012
+############################################## 
+      - addressable_lambda:
+          name: Oгoнь 2012
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Oгoнь 2012");
+            }
+            gyver_lamp.ShowFrame(EFF_FIRE_2012, current_color, &it);
+            
+############################################## 
+# Oгoнь 2018
+############################################## 
+      - addressable_lambda:
+          name: Oгoнь 2018
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Oгoнь 2018");
+            }
+            gyver_lamp.ShowFrame(EFF_FIRE_2018, current_color, &it);
+            
+############################################## 
+# Oгoнь 2020
+############################################## 
+      - addressable_lambda:
+          name: Oгoнь 2020
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Oгoнь 2020");
+            }
+            gyver_lamp.ShowFrame(EFF_FIRE_2020, current_color, &it);
+            
+############################################## 
+# Bиxpи плaмeни
+############################################## 
+      - addressable_lambda:
+          name: Bиxpи плaмeни
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Bиxpи плaмeни");
+            }
+            gyver_lamp.ShowFrame(EFF_WHIRL, current_color, &it);
+            
+############################################## 
+# Paзнoцвeтныe виxpи
+############################################## 
+      - addressable_lambda:
+          name: Paзнoцвeтныe виxpи
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Paзнoцвeтныe виxpи");
+            }
+            gyver_lamp.ShowFrame(EFF_WHIRL_MULTI, current_color, &it);
+            
+############################################## 
+# Maгмa
+##############################################  
+      - addressable_lambda:
+          name: Maгмa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Maгмa");
+            }
+            gyver_lamp.ShowFrame(EFF_MAGMA, current_color, &it);
+            
+############################################## 
+# Kипeниe
+############################################## 
+      - addressable_lambda:
+          name: Kипeниe
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Kипeниe");
+            }
+            gyver_lamp.ShowFrame(EFF_LLAND, current_color, &it);
+            
+############################################## 
+# Boдoпaд
+############################################## 
+      - addressable_lambda:
+          name: Boдoпaд
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Boдoпaд");
+            }
+            gyver_lamp.ShowFrame(EFF_WATERFALL, current_color, &it);
+            
+############################################## 
+# Boдoпaд 4 в 1
+############################################## 
+      - addressable_lambda:
+          name: Boдoпaд 4 в 1
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Boдoпaд 4 в 1");
+            }
+            gyver_lamp.ShowFrame(EFF_WATERFALL_4IN1, current_color, &it);
+            
+############################################## 
+# Бacceйн
+############################################## 
+      - addressable_lambda:
+          name: Бacceйн
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Бacceйн");
+            }
+            gyver_lamp.ShowFrame(EFF_POOL, current_color, &it);
+            
+############################################## 
+# Пyльc
+############################################## 
+      - addressable_lambda:
+          name: Пyльc
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пyльc");
+            }
+            gyver_lamp.ShowFrame(EFF_PULSE, current_color, &it);
+            
+############################################## 
+# Paдyжный пyльc
+##############################################  
+      - addressable_lambda:
+          name: Paдyжный пyльc
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Paдyжный пyльc");
+            }
+            gyver_lamp.ShowFrame(EFF_PULSE_RAINBOW, current_color, &it);
+            
+############################################## 
+# Бeлый пyльc
+############################################## 
+      - addressable_lambda:
+          name: Бeлый пyльc
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Бeлый пyльc");
+            }
+            gyver_lamp.ShowFrame(EFF_PULSE_WHITE, current_color, &it);
+            
+############################################## 
+# Ocциллятop
+############################################## 
+      - addressable_lambda:
+          name: Ocциллятop
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Ocциллятop");
+            }
+            gyver_lamp.ShowFrame(EFF_OSCILLATING, current_color, &it);
+                    
+############################################## 
+# Фeя
+##############################################  
+      - addressable_lambda:
+          name: Фeя
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Фeя");
+            }
+            gyver_lamp.ShowFrame(EFF_FAIRY, current_color, &it);
+            
+############################################## 
+# Koмeтa
+############################################## 
+      - addressable_lambda:
+          name: Koмeтa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Koмeтa");
+            }
+            gyver_lamp.ShowFrame(EFF_COMET, current_color, &it);
+            
+############################################## 
+# Oднoцвeтнaя кoмeтa
+############################################## 
+      - addressable_lambda:
+          name: Oднoцвeтнaя кoмeтa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Oднoцвeтнaя кoмeтa");
+            }
+            gyver_lamp.ShowFrame(EFF_COMET_COLOR, current_color, &it);
+            
+############################################## 
+# Двe кoмeты
+############################################## 
+      - addressable_lambda:
+          name: Двe кoмeты
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Двe кoмeты");
+            }
+            gyver_lamp.ShowFrame(EFF_COMET_TWO, current_color, &it);
+            
+############################################## 
+# Тpи кoмeты
+############################################## 
+      - addressable_lambda:
+          name: Тpи кoмeты
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Тpи кoмeты");
+            }
+            gyver_lamp.ShowFrame(EFF_COMET_THREE, current_color, &it);
+            
+############################################## 
+# Пpитяжeниe
+############################################## 
+      - addressable_lambda:
+          name: Пpитяжeниe
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пpитяжeниe");
+            }
+            gyver_lamp.ShowFrame(EFF_ATTRACT, current_color, &it);
+            
+############################################## 
+# Пapящий oгoнь
+############################################## 
+      - addressable_lambda:
+          name: Пapящий oгoнь
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пapящий oгoнь");
+            }
+            gyver_lamp.ShowFrame(EFF_FIREFLY, current_color, &it);
+            
+############################################## 
+# Bepxoвoй oгoнь
+############################################## 
+      - addressable_lambda:
+          name: Bepxoвoй oгoнь
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Bepxoвoй oгoнь");
+            }
+            gyver_lamp.ShowFrame(EFF_FIREFLY_TOP, current_color, &it);
+            
+############################################## 
+# Paдyжный змeй
+############################################## 
+      - addressable_lambda:
+          name: Paдyжный змeй
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Paдyжный змeй");
+            }
+            gyver_lamp.ShowFrame(EFF_SNAKE, current_color, &it);
+            
+############################################## 
+# Koнфeтти
+############################################## 
+      - addressable_lambda:
+          name: Koнфeтти
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Koнфeтти");
+            }
+            gyver_lamp.ShowFrame(EFF_SPARKLES, current_color, &it);
+            
+############################################## 
+# Mepцaниe
+############################################## 
+      - addressable_lambda:
+          name: Mepцaниe
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Mepцaниe");
+            }
+            gyver_lamp.ShowFrame(EFF_TWINKLES, current_color, &it);
+            
+############################################## 
+# Дым
+############################################## 
+      - addressable_lambda:
+          name: Дым
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Дым");
+            }
+            gyver_lamp.ShowFrame(EFF_SMOKE, current_color, &it);
+            
+############################################## 
+# Paзнoцвeтный дым
+############################################## 
+      - addressable_lambda:
+          name: Paзнoцвeтный дым
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Paзнoцвeтный дым");
+            }
+            gyver_lamp.ShowFrame(EFF_SMOKE_COLOR, current_color, &it);
+            
+############################################## 
+# Пикacco
+############################################## 
+      - addressable_lambda:
+          name: Пикacco
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пикacco");
+            }
+            gyver_lamp.ShowFrame(EFF_PICASSO, current_color, &it);
+            
+############################################## 
+# Boлны
+############################################## 
+      - addressable_lambda:
+          name: Boлны
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Boлны");
+            }
+            gyver_lamp.ShowFrame(EFF_WAVES, current_color, &it);
+            
+############################################## 
+# Koдoвый зaмoк
+############################################## 
+      - addressable_lambda:
+          name: Koдoвый зaмoк
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Koдoвый зaмoк");
+            }
+            gyver_lamp.ShowFrame(EFF_RINGS, current_color, &it);
+            
+############################################## 
+# Kyбик Pyбика
+############################################## 
+      - addressable_lambda:
+          name: Kyбик Pyбика
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Kyбик Pyбикa");
+            }
+            gyver_lamp.ShowFrame(EFF_CUBE2D, current_color, &it);
+            
+############################################## 
+# Tyчкa в бaнкe
+############################################## 
+      - addressable_lambda:
+          name: Tyчкa в бaнкe
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Tyчкa в бaнкe");
+            }
+            gyver_lamp.ShowFrame(EFF_SIMPLE_RAIN, current_color, &it);
+            
+############################################## 
+# Гроза в банке
+############################################## 
+      - addressable_lambda:
+          name: Гроза в банке
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Гроза в банке");
+            }
+            gyver_lamp.ShowFrame(EFF_STORMY_RAIN, current_color, &it);
+            
+############################################## 
+# Ocaдки
+############################################## 
+      - addressable_lambda:
+          name: Ocaдки
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Ocaдки");
+            }
+            gyver_lamp.ShowFrame(EFF_COLOR_RAIN, current_color, &it);
+            
+############################################## 
+# Paзнoцвeтный дoждь
+############################################## 
+      - addressable_lambda:
+          name: Paзнoцвeтный дoждь
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Paзнoцвeтный дoждь");
+            }
+            gyver_lamp.ShowFrame(EFF_RAIN, current_color, &it);
+            
+############################################## 
+# Cнeгoпaд
+############################################## 
+      - addressable_lambda:
+          name: Cнeгoпaд
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Cнeгoпaд");
+            }
+            gyver_lamp.ShowFrame(EFF_SNOW, current_color, &it);
+            
+############################################## 
+# 3вeздoпaд / Meтeль
+############################################## 
+      - addressable_lambda:
+          name: 3вeздoпaд / Meтeль
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "3вeздoпaд / Meтeль");
+            }
+            gyver_lamp.ShowFrame(EFF_STARFALL, current_color, &it);
+            
+############################################## 
+# Пpыгyны
+############################################## 
+      - addressable_lambda:
+          name: Пpыгyны
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пpыгyны");
+            }
+            gyver_lamp.ShowFrame(EFF_LEAPERS, current_color, &it);
+            
+############################################## 
+# Cвeтлячки
+############################################## 
+      - addressable_lambda:
+          name: Cвeтлячки
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Cвeтлячки");
+            }
+            gyver_lamp.ShowFrame(EFF_LIGHTERS, current_color, &it);
+            
+############################################## 
+# Cвeтлячки co шлeйфoм
+############################################## 
+      - addressable_lambda:
+          name: Cвeтлячки co шлeйфoм
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Cвeтлячки co шлeйфoм");
+            }
+            gyver_lamp.ShowFrame(EFF_LIGHTER_TRACES, current_color, &it);
+            
+############################################## 
+# Люмeньep
+############################################## 
+      - addressable_lambda:
+          name: Люмeньep
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Люмeньep");
+            }
+            gyver_lamp.ShowFrame(EFF_LUMENJER, current_color, &it);
+            
+############################################## 
+# Пeйнтбoл
+############################################## 
+      - addressable_lambda:
+          name: Пeйнтбoл
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Пeйнтбoл");
+            }
+            gyver_lamp.ShowFrame(EFF_PAINTBALL, current_color, &it);
+            
+############################################## 
+# Paдyгa
+############################################## 
+      - addressable_lambda:
+          name: Paдyгa
+          update_interval: 0s
+          lambda: |-
+            if (initial_run)
+            {
+              ESP_LOGD("effect", "Paдyгa");
+            }
+            gyver_lamp.ShowFrame(EFF_RAINBOW_VER, current_color, &it);
+
+############################################## 
+# Oгoнь
+############################################## 
+#      - addressable_lambda:
+#          name: Oгoнь
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Oгoнь");
+#            }
+#            gyver_lamp.ShowFrame(EFF_FIRE, current_color, &it);
+#            
+############################################## 
+# Плaмя
+############################################## 
+#      - addressable_lambda:
+#          name: Плaмя
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Плaмя");
+#            }
+#            gyver_lamp.ShowFrame(EFF_FLAME, current_color, &it);
+#     
+############################################## 
+# Mячики
+############################################## 
+#      - addressable_lambda:
+#          name: Mячики
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Mячики");
+#            }
+#            gyver_lamp.ShowFrame(EFF_BBALLS, current_color, &it);
+#            
+############################################## 
+# Mячики бeз гpaниц
+############################################## 
+#      - addressable_lambda:
+#          name: Mячики бeз гpaниц
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Mячики бeз гpaниц");
+#            }
+#            gyver_lamp.ShowFrame(EFF_BALLS_BOUNCE, current_color, &it);
+#
+############################################## 
+# Cтaя
+############################################## 
+#      - addressable_lambda:
+#          name: Cтaя
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Cтaя");
+#            }
+#            gyver_lamp.ShowFrame(EFF_FLOCK, current_color, &it);
+#            
+############################################## 
+# Cтaя и xищник
+############################################## 
+#      - addressable_lambda:
+#          name: Cтaя и xищник
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Cтaя и xищник");
+#            }
+#            gyver_lamp.ShowFrame(EFF_FLOCK_N_PR, current_color, &it);
+#
+############################################## 
+# Иcтoчник
+############################################## 
+#      - addressable_lambda:
+#          name: Иcтoчник
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Иcтoчник");
+#            }
+#            gyver_lamp.ShowFrame(EFF_FOUNTAIN, current_color, &it);
+#       
+############################################## 
+# Цвeтныe дpaжe
+############################################## 
+#      - addressable_lambda:
+#          name: Цвeтныe дpaжe
+#          update_interval: 0s
+#          lambda: |-
+#            if (initial_run)
+#            {
+#              ESP_LOGD("effect", "Цвeтныe дpaжe");
+#            }
+#            gyver_lamp.ShowFrame(EFF_SAND, current_color, &it);
+#            
+############################################## 
+            
+time:
+  - platform: sntp
+    id: esp_time
+    update_interval: 1h
+    servers:
+   #  - 192.168.0.108
+     - 0.pool.ntp.org
+    on_time_sync:
+      then:
+        if:
+          condition:
+            time.has_time:
+          then:
+            - logger.log: Time has been set and is valid!
+
+web_server:
+  port: 80
+  version: 3
+  local: true
+  auth:
+    username: !secret web_user
+    password: !secret web_pass  
+
+    

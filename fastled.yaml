@@ -1,0 +1,639 @@
+############################
+#MP34DT01  # 	ESP32        #
+#3V	       #  3V           #
+#GND	     #  GND (GPIO22) #
+#SEL	     #  GND or 3.3V  #(GPIO23)
+#CLK	     #  WS (GPIO19)  #
+#DAT	     #  IN (GPIO33)  #
+#          # -	BCK        #
+############################
+
+substitutions:
+  devicename: fastled
+  upper_devicename: FastLed
+  device_description: Гирлянда 
+  update_interval: 3s
+  reboot_timeout: 0s
+
+# Power
+  energy_method: left
+  leds_current_limit: "3"                          # лимит по току в амперах, автоматически управляет яркостью (пожалей свой блок питания!) 0 - выключить лимит
+
+# led
+  led_id: FastLed
+  num_leds: "256"
+  type_leds: "GRB"
+  pin_leds: "GPIO26"
+
+  color_correct_bright: "50%"
+  sunrise: "100"
+  offset: "10" # clock_ring_big
+  radar_percentage: "20" #radar_ring
+  strobe: "70%" # strobe brightness color
+  flagflip: "0"
+
+
+# Подсветка для лестницы
+# Указывает, сколько ступенек с подсветкой имеется на лестнице
+  stufen_anzahl:             "8"
+  
+# Указывает, сколько светодиодов существует на каждой ступени 
+# (Количество числовых значений должно соответствовать "stufen_number")
+  leds_pro_stufe:            "{8, 8, 8, 8, 8, 8, 8, 8}"
+
+# Указывает цвет для каждого уровня (для "раскрашенной" анимации) 
+# (Количество числовых значений должно соответствовать "stufen_number")
+  farbe_je_stufe:            "{Color(255,0,0), Color(0,255,0), Color(255,0,0), Color(0,255,0), Color(255,0,0), Color(0,0,255), Color(255,0,0), Color(0,0,255)}"
+
+
+
+# ambilight PhilipsTV
+  tv_ambilight: "192.168.88.5" 
+  ambilight_color_correct: "1"
+
+esphome:
+  name: ${devicename}
+  comment: "${device_description}"
+  libraries:
+# fastled
+    - FastLED
+    - arduinoFFT=https://github.com/kosme/arduinoFFT.git#develop
+  includes:
+# fastled
+    - my_components/fastled/light/light.h
+    - my_components/fastled/light/palettes.h
+# music
+    - my_components/fastled/sound/music_leds_esphome.h
+    - my_components/fastled/sound/VisualEffect.h
+    - my_components/fastled/sound/audio_source.h
+    - my_components/fastled/sound/audio_reactive.h
+    
+# triangles
+#  const num_leds = 128;
+#  const height = 16;
+#  const width  = 8;
+    - my_components/fastled/esp_led_triangles.h
+    
+  on_boot:
+    priority: -100
+    then:
+      - light.turn_off:
+          id: ${led_id}
+      - delay: 5s
+      - logger.log:
+          format: "${devicename} started, LED: ${type_leds}:${num_leds}:${pin_leds}, Reboot: ${reboot_timeout}"
+          level: INFO
+          tag: start
+          
+esp32:
+  board: m5stack-atom
+  framework:
+    type: arduino
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/KaufHA/common
+    components: [ ddp ]
+
+logger:
+
+api:
+  password: !secret api_pass
+  reboot_timeout: ${reboot_timeout}
+ota:
+  password: !secret ota_pass
+  platform: esphome
+  on_begin:
+    then:
+      - lambda: |-
+          music_leds.~MusicLeds();
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+http_request:
+  timeout: 10s
+  verify_ssl: false
+
+packages:
+  led_power: !include packages/led_power.yaml
+
+e131:
+  method: multicast
+wled:
+
+number:
+  - platform: template
+    name: ${devicename} Fastled Palette
+    min_value: 0
+    max_value: 56
+    step: 1
+    optimistic: true
+    id: fastled_palette
+    initial_value: 4
+    mode: slider
+    entity_category: config
+
+  - platform: template
+    name: ${devicename} Fastled Speed
+    min_value: 0
+    max_value: 255
+    step: 1
+    optimistic: true
+    id: fastled_speed
+    initial_value: 128
+    mode: slider
+    entity_category: config
+
+  - platform: template
+    name: ${devicename} Fastled Variant
+    min_value: 0
+    max_value: 255
+    step: 1
+    optimistic: true
+    id: fastled_variant
+    initial_value: 128
+    mode: slider
+    entity_category: config
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${devicename} IP Address"
+      icon: mdi:ip
+    ssid:
+      name: "${devicename} SSID"
+      icon: mdi:access-point-network
+    mac_address:
+      name: "${devicename} Mac"
+      icon: mdi:lan
+  
+sensor:
+  - platform: wifi_signal
+    name: "${devicename} Wifi"
+    update_interval: 60s  
+    id: wifi_signal_db
+    entity_category: "diagnostic"
+  - platform: copy # Reports the WiFi signal strength in %
+    source_id: wifi_signal_db
+    name: "${devicename} WiFi Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+
+binary_sensor:
+  - platform: gpio
+    name: "${devicename} Led"
+    pin:
+      number: 39
+      inverted: True
+    on_click:
+      then:
+        - lambda: !<!lambda> |-
+            uint32_t total = id(${led_id})->get_effects().size();
+            uint32_t curr_idx = 0;
+            uint32_t i = 0;
+            std::string curr_effect = id(${led_id})->get_effect_name();
+            auto call = id(${led_id})->turn_on();
+
+            // set first effect in list
+            if (strcasecmp(curr_effect.c_str(), "none") == 0) {
+              call.set_effect(1);
+              call.perform();
+
+              return;
+            }
+
+            for (auto *effect : id(${led_id})->get_effects()) {
+              i++;
+              if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
+                curr_idx = i;
+            }
+
+            if (curr_idx == total) {
+              call.set_effect(0);
+            } else {
+              call.set_effect(curr_idx + 1);
+            }
+
+            call.perform();
+button:
+  - platform: restart
+    name: "${devicename} restart"
+
+  - platform: template
+    name: "${devicename} next effect"
+    on_press:
+      then:
+        - lambda: !<!lambda> |-
+            uint32_t total = id(${led_id})->get_effects().size();
+            uint32_t curr_idx = 0;
+            uint32_t i = 0;
+            std::string curr_effect = id(${led_id})->get_effect_name();
+            auto call = id(${led_id})->turn_on();
+
+            // set first effect in list
+            if (strcasecmp(curr_effect.c_str(), "none") == 0) {
+              call.set_effect(1);
+              call.perform();
+
+              return;
+            }
+
+            for (auto *effect : id(${led_id})->get_effects()) {
+              i++;
+              if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
+                curr_idx = i;
+            }
+
+            if (curr_idx == total) {
+              call.set_effect(0);
+            } else {
+              call.set_effect(curr_idx + 1);
+            }
+            call.perform();
+            
+switch:
+  - platform: gpio
+    pin:
+      number: GPIO22
+      drive_strength: 40mA
+      inverted: true
+ #   name: MIC 
+ # internal (Optional, boolean): Mark this component as internal. Internal components will not be exposed to the frontend (like Home Assistant). Only specifying an id without a name will implicitly set this to true.
+    id: mic
+    icon: mdi:microphone
+    restore_mode: ALWAYS_ON
+
+  - platform: gpio
+    pin:
+      number: GPIO23
+      inverted: true
+    #name: select L_R 
+    #internal (Optional, boolean): Mark this component as internal. Internal components will not be exposed to the frontend (like Home Assistant). Only specifying an id without a name will implicitly set this to true.
+    id: selec_L_R
+    icon: mdi:microphone
+    restore_mode: ALWAYS_ON
+#Please note that the WS is connected to the CLK of the microphone! You can select if you receive only data on the left or right by setting SEL to high or low.
+ddp:
+
+light:
+  - platform: neopixelbus
+    id: ${led_id}
+    type: ${type_leds}
+    pin: ${pin_leds}
+    num_leds: ${num_leds}
+    name: ${devicename} NeoPixel
+    color_correct: [$color_correct_bright, $color_correct_bright, $color_correct_bright]
+    variant: 800KBPS  # WS2812 (same as 800KBPS)
+    effects:
+
+#random   
+      - !include my_components/effects/random.yaml
+      - !include my_components/effects/random_colors_fast.yaml
+      - !include my_components/effects/random_colors_slow.yaml
+      - !include my_components/effects/random_effect_slow.yaml
+      - !include my_components/effects/random_effect_fast.yaml
+      - !include my_components/effects/random_effect_insane.yaml
+      - !include my_components/effects/random_effect_totally_loco.yaml
+
+#pulse
+      - !include my_components/effects/pulse.yaml
+      - !include my_components/effects/pulse_fast.yaml
+      - !include my_components/effects/pulse_slow.yaml
+      - !include my_components/effects/pulse_asymmetrical.yaml
+
+#strobe
+      - !include my_components/effects/strobe.yaml
+      - !include my_components/effects/strobe_effect.yaml
+      - !include my_components/effects/strobe_effect_lightning.yaml
+      - !include my_components/effects/strobe_effect_custom.yaml
+      - !include my_components/effects/strobe_alarm.yaml
+      - !include my_components/effects/strobe_blue.yaml
+      - !include my_components/effects/strobe_common.yaml
+      - !include my_components/effects/strobe_green.yaml
+      - !include my_components/effects/strobe_police.yaml
+      - !include my_components/effects/strobe_purple.yaml
+
+#flicker       
+      - !include my_components/effects/flicker.yaml
+      - !include my_components/effects/flicker_custom .yaml
+
+# addressable_rainbow
+      - !include my_components/effects/addressable_rainbow.yaml
+      - !include my_components/effects/addressable_rainbow_custom.yaml
+
+#addressable_color_wipe
+      - !include my_components/effects/addressable_color_wipe.yaml
+      - !include my_components/effects/addressable_color_wipe_custom.yaml
+
+#addressable_scan
+      - !include my_components/effects/addressable_scan.yaml
+      - !include my_components/effects/addressable_scan_custom.yaml
+      - !include my_components/effects/addressable_scan_big.yaml
+      - !include my_components/effects/addressable_scan_slow.yaml
+
+#addressable_twinkle
+      - !include my_components/effects/addressable_twinkle.yaml
+      - !include my_components/effects/addressable_twinkle_custom.yaml
+
+#addressable_random_twinkle
+      - !include my_components/effects/addressable_random_twinkle.yaml
+      - !include my_components/effects/addressable_random_twinkle_custom.yaml
+
+#addressable_fireworks
+      - !include my_components/effects/addressable_fireworks.yaml
+      - !include my_components/effects/addressable_fireworks_random.yaml
+      - !include my_components/effects/addressable_fireworks_custom.yaml
+
+#addressable_flicker
+      - !include my_components/effects/addressable_flicker.yaml
+      - !include my_components/effects/addressable_flicker_custom.yaml
+
+#Custom
+      - !include my_components/effects/custom_automation.yaml
+      - !include my_components/effects/custom_effect.yaml
+      - !include my_components/effects/custom_effect2.yaml
+
+
+#!include       
+      - !include my_components/effects/ambilight.yaml 
+      - !include my_components/effects/ambilight_full.yaml
+      - !include my_components/effects/balls.yaml
+      - !include my_components/effects/blue_fire.yaml
+      - !include my_components/effects/blue_scan.yaml
+      - !include my_components/effects/bluez.yaml
+      - !include my_components/effects/breathing.yaml
+      - !include my_components/effects/breathing_rgb.yaml
+      - !include my_components/effects/candle_flicker.yaml
+      - !include my_components/effects/candy_cane.yaml
+      - !include my_components/effects/candy_cane_random.yaml
+      - !include my_components/effects/christmas_red_green.yaml
+     # - !include my_components/effects/clock.yaml
+     # - !include my_components/effects/clock_full.yaml
+      - !include my_components/effects/clock_light.yaml
+      - !include my_components/effects/clock_ring.yaml
+      - !include my_components/effects/clock_ring_big.yaml
+      - !include my_components/effects/confetti.yaml
+      - !include my_components/effects/exponent_light.yaml
+      - !include my_components/effects/fire.yaml
+      - !include my_components/effects/fire_ring.yaml
+      - !include my_components/effects/gold_glitter.yaml
+      - !include my_components/effects/hsv.yaml
+      - !include my_components/effects/meteor.yaml
+      - !include my_components/effects/outside_to_center.yaml
+      - !include my_components/effects/radar_ring.yaml
+      - !include my_components/effects/rainbow_new.yaml #
+      - !include my_components/effects/rise_and_fade.yaml #
+      - !include my_components/effects/running_lights.yaml
+      - !include my_components/effects/snow_flack.yaml
+      - !include my_components/effects/sparkle.yaml
+      - !include my_components/effects/sunrise.yaml
+      - !include my_components/effects/sunrise2.yaml
+      - !include my_components/effects/sunrise3.yaml
+      - !include my_components/effects/tail.yaml
+     # - !include my_components/effects/turn_on_ring.yaml
+     # - !include my_components/effects/turn_off_ring.yaml
+      - !include my_components/effects/vesuvius.yaml
+      - !include my_components/effects/wheel_of_color.yaml
+
+#fastled
+      - !include my_components/effects/fastled-blendwave.yaml
+      - !include my_components/effects/fastled-candles.yaml
+      - !include my_components/effects/fastled-colorwaves.yaml
+      - !include my_components/effects/fastled-confetti.yaml
+      - !include my_components/effects/fastled-dynamic-smooth.yaml
+      - !include my_components/effects/fastled-fire.yaml
+      - !include my_components/effects/fastled-gradient.yaml
+      - !include my_components/effects/fastled-juggle.yaml
+      - !include my_components/effects/fastled-lava.yaml
+      - !include my_components/effects/fastled-matrix.yaml
+      - !include my_components/effects/fastled-noice.yaml
+      - !include my_components/effects/fastled-noise-wide.yaml
+      - !include my_components/effects/fastled-one-sin.yaml
+      - !include my_components/effects/fastled-plasma.yaml
+      - !include my_components/effects/fastled-rainbow-beat.yaml
+      - !include my_components/effects/fastled-rainbow-march.yaml
+      - !include my_components/effects/fastled-serendipitous.yaml
+      #- !include my_components/effects/fastled-starburst.yaml 
+
+
+      - !include my_components/effects/fastled-three-sin.yaml
+      - !include my_components/effects/fastled-tunnel.yaml
+      - !include my_components/effects/fastled-two-sin.yaml
+      
+# DDP      
+      - !include my_components/effects/ddp.yaml
+      - !include my_components/effects/hyperion_ddp.yaml
+
+#!include        
+      - !include my_components/effects/2.yaml    
+      - !include my_components/effects/InAlarm.yaml
+      - !include my_components/effects/WTF.yaml
+      - !include my_components/effects/aurora.yaml
+      - !include my_components/effects/breathing2.yaml
+      - !include my_components/effects/breathing_red.yaml
+      - !include my_components/effects/candles.yaml
+      - !include my_components/effects/chill_mode.yaml
+      - !include my_components/effects/chill_vibrant.yaml
+      - !include my_components/effects/christmas.yaml
+      - !include my_components/effects/christmas_fading.yaml
+      - !include my_components/effects/christmas_fadingN.yaml
+      - !include my_components/effects/christmas_multicolour.yaml
+      - !include my_components/effects/christmas_red_green_white.yaml
+      - !include my_components/effects/christmas_static.yaml
+      - !include my_components/effects/color_change.yaml
+      - !include my_components/effects/color_loop.yaml
+      - !include my_components/effects/disco.yaml
+      - !include my_components/effects/expo.yaml
+      - !include my_components/effects/fireplace.yaml
+      - !include my_components/effects/flag_russian.yaml
+      - !include my_components/effects/flag_ Italy.yaml
+      - !include my_components/effects/flames.yaml
+      - !include my_components/effects/lightning.yaml
+      - !include my_components/effects/patern.yaml
+      - !include my_components/effects/pattern20.yaml
+      - !include my_components/effects/pattern25.yaml
+      - !include my_components/effects/pattern33.yaml
+      - !include my_components/effects/pattern50.yaml
+      - !include my_components/effects/pattern50_2.yaml
+      - !include my_components/effects/pattern50_3.yaml
+      - !include my_components/effects/pattern75.yaml  
+      - !include my_components/effects/police_scroll.yaml
+      - !include my_components/effects/rainbow_row.yaml
+      - !include my_components/effects/random_shift.yaml
+      - !include my_components/effects/random_flicker.yaml
+      #- !include my_components/effects/snowflack.yaml #
+      - !include my_components/effects/static_rainbow.yaml
+      - !include my_components/effects/wipe_in.yaml
+      - !include my_components/effects/wipe_out.yaml
+
+      - !include my_components/effects/rocket.yaml
+      - !include my_components/effects/step_light_on.yaml
+      - !include my_components/effects/step_light_up_animated.yaml
+      - !include my_components/effects/step_light_up_colorized.yaml
+      - !include my_components/effects/step_light_up_off.yaml
+      - !include my_components/effects/step_light_down.yaml
+      - !include my_components/effects/step_light_animates_down.yaml
+      - !include my_components/effects/step_light_down_colorized.yaml
+      - !include my_components/effects/step_light_down_off.yaml
+
+      - !include my_components/effects/dual_disco.yaml
+      - !include my_components/effects/psychodelic.yaml
+      - !include my_components/effects/voice.yaml
+
+      - !include my_components/effects/e131.yaml
+      - !include my_components/effects/wled.yaml
+# Music
+      - !include my_components/effects/music_grav_midnoise.yaml
+      - !include my_components/effects/music_bin_map.yaml
+      - !include my_components/effects/music_grav_freq.yaml
+      - !include my_components/effects/music_grav_center.yaml
+      - !include my_components/effects/music_grav_centric.yaml
+      - !include my_components/effects/music_pixels.yaml
+      - !include my_components/effects/music_jungles.yaml
+
+# led_triangles
+      - addressable_lambda:
+          name: "HST Art Patterns"
+          update_interval: 16ms
+          lambda: |-
+            auto brt = id(${led_id}).current_values.is_on() ? id(${led_id}).current_values.get_brightness() : 0;
+            uint8_t pRed = id(${led_id}).current_values.get_red() * 255;
+            uint8_t pGreen = id(${led_id}).current_values.get_green() * 255;
+            uint8_t pBlue = id(${led_id}).current_values.get_blue() * 255;
+            esp_led_triangles::hst_art(it, initial_run, 5, esp_led_triangles::MANUAL, current_color, Color(pRed * brt, pGreen * brt, pBlue * brt));
+      - addressable_lambda:
+          name: " Art Random Color Patterns"
+          update_interval: 16ms
+          lambda: |-
+            esp_led_triangles::hst_art(it, initial_run, 5, esp_led_triangles::RANDOM);
+      - addressable_lambda:
+          name: "HST Art Random Rotating Color Patterns"
+          update_interval: 16ms
+          lambda: |-
+            esp_led_triangles::hst_art(it, initial_run, 5, esp_led_triangles::RANDOM_ROTATE);
+      - addressable_lambda:
+          name: "Spin"
+          update_interval: 125ms
+          lambda: |-
+            static uint8_t cell = 0, stall = 0;
+            static Color fill_color(0, 0, 0);
+
+            if (initial_run || (stall > 23)) {
+              cell = 0;
+              stall = 0;
+            }
+
+            // if (cell > 7) {
+            //   cell = 0;
+            //   fill_color = Color::random_color();
+            // }
+
+            if ((stall < 4) || (stall > 11 && stall < 16)) {
+              for (uint8_t i = 0; i < 16; i++) {
+                // update all pixels within the given pixel group as indicated by 'cell'
+                uint8_t led = esp_led_triangles::hst_cell_origin[i] + esp_led_triangles::hst_cell_offset[cell];
+                it[esp_led_triangles::m_leds[led]] = fill_color;
+              }
+              cell++;
+            } else {
+              fill_color = Color::random_color();
+            }
+            stall++;
+      - addressable_lambda:
+          name: "Fill Grid"
+          update_interval: 125ms
+          lambda: |-
+            static uint8_t cell = 0;
+            static Color fill_color(0, 0, 0);
+
+            if (initial_run || cell >= it.size() - 1) {
+              if (!initial_run)
+                it[esp_led_triangles::m_leds[cell]] = fill_color;
+              cell = 0;
+              // it.all() = Color::BLACK;
+              fill_color = Color::random_color();
+              it[esp_led_triangles::m_leds[cell]] = Color::WHITE;
+            } else {
+              it[esp_led_triangles::m_leds[cell++]] = fill_color;
+              it[esp_led_triangles::m_leds[cell]] = Color::WHITE;
+            }
+      - addressable_lambda:
+          name: "TestEffect1"
+          update_interval: 16ms
+          lambda: |-
+            // it.size() - Number of LEDs
+            // it[num] - Access the LED at index num.
+            // Set the LED at num to the given r, g, b values
+            // it[num] = Color(r, g, b);
+            // Get the color at index num (Color instance)
+            // it[num].get();
+
+            // Example: Simple color wipe
+            for (int i = it.size() - 1; i > 0; i--) {
+              it[i] = it[i - 1].get();
+            }
+            it[0] = Color::random_color();
+
+            // Bonus: use .range() and .all() to set many LEDs without having to write a loop.
+            it.range(0, 50) = Color::BLACK;
+            it.all().fade_to_black(10);
+
+ 
+
+time:
+  - platform: sntp
+    id: esp_time
+    update_interval: 1h
+    servers:
+   #  - 192.168.0.108
+     - 0.pool.ntp.org
+    on_time_sync:
+      then:
+        if:
+          condition:
+            time.has_time:
+          then:
+            - logger.log: Time has been set and is valid!
+    on_time:
+        seconds: 0
+        then:
+        - lambda: !<!lambda> |-
+            uint32_t total = id(${led_id})->get_effects().size();
+            uint32_t curr_idx = 0;
+            uint32_t i = 0;
+            std::string curr_effect = id(${led_id})->get_effect_name();
+            auto call = id(${led_id})->turn_on();
+
+            // set first effect in list
+            if (strcasecmp(curr_effect.c_str(), "none") == 0) {
+              call.set_effect(1);
+              call.perform();
+
+              return;
+            }
+
+            for (auto *effect : id(${led_id})->get_effects()) {
+              i++;
+              if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
+                curr_idx = i;
+            }
+
+            if (curr_idx == total) {
+              call.set_effect(0);
+            } else {
+              call.set_effect(curr_idx + 1);
+            }
+
+            call.perform();
+web_server:
+  port: 80
+  version: 3
+  local: true
+  auth:
+    username: !secret web_user
+    password: !secret web_pass  

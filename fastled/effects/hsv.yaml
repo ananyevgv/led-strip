@@ -1,0 +1,19 @@
+addressable_lambda:
+  name: HSV
+  update_interval: 50ms
+  lambda: |-
+    static uint8_t x = 0;
+
+    if (initial_run)
+    {
+      ESP_LOGD("effect", "HSV");
+      id(${led_id}).turn_on().set_brightness(1.0).perform();
+    }
+
+    if (x > 255)
+    {
+      x = 0;
+    }
+    it.all() = ESPHSVColor(x, 255, 255);
+
+    x++;

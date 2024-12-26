@@ -1,0 +1,16 @@
+addressable_lambda:
+  name: Confetti
+  update_interval: 50ms
+  lambda: |-
+    if (initial_run)
+    {
+      ESP_LOGD("effect", "Confetti");
+      id(${led_id}).turn_on().set_brightness(1.0).perform();
+    }
+
+    it.all().fade_to_black(50);
+    for (int x = 0; x < std::max(1, (int) (it.size() / 100.0)); x++)
+    {
+      int pos = random(it.size());
+      it[pos] = ESPHSVColor(0 + random(100), 200, 200);
+    }

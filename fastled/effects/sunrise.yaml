@@ -1,0 +1,22 @@
+lambda:
+  name: Sunrise
+  update_interval: 15s
+  lambda: |-
+    static int state = 10;
+
+    if (initial_run)
+    {
+      ESP_LOGD("effect", "Sunrise");
+      id(${led_id}).turn_on().set_brightness(1.0).perform();
+    }
+
+    auto call = id(${led_id}).make_call();
+    call.set_transition_length(5000);
+    call.set_rgb(1.0, 0.75, 0.0);
+    call.set_brightness(state / 100.0);
+    call.perform();
+
+    if (state < ${sunrise})
+    {
+      state++;
+    }

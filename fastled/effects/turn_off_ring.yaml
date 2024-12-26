@@ -1,0 +1,30 @@
+addressable_lambda:
+  name: "Turn Off Ring"
+  update_interval: 30ms
+  lambda: |-
+    static int step;
+
+    if (initial_run)
+    {
+      ESP_LOGD("effect", "Turn Off Ring");
+      id(${led_id}).turn_on().set_brightness(1.0).perform();
+      step = 0;
+    }
+
+    int mid = it.size() / 2;
+
+    it[step] = Color::BLACK;
+    it[mid - step] = Color::BLACK;
+
+    it[it.size() - step] = Color::BLACK;
+    it[mid + step] = Color::BLACK;
+
+    step++;
+
+    if (step >= it.size() / 4)
+    {
+      it.all() = Color::BLACK;
+
+      auto call = id(${led_id}).turn_off();
+      call.perform();
+    }

@@ -1,4 +1,4 @@
-# Audio reactive led strip Atom Lite Esphome + Light Effects
+# Audio reactive LedStrip, GyverLamp, Fastled  Atom Lite Esphome + Light Effects
 
 <img src="https://github.com/ananyevgv/led-strip/blob/main/atom.jpg" height="300" alt="Atom lite">
 

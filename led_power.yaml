@@ -14,12 +14,15 @@ number:
     entity_category: config
     restore_value: true
     unit_of_measurement: A
-
+    icon: mdi:power-plug
+    disabled_by_default: true
+    
 sensor:
   # Current
   - platform: template
     name: ${devicename} Current
     id: current
+    icon: mdi:current-ac
     lambda: |-
       const float led = 20.0 / 255.0; // 20мА per Led
       #ifdef USE_ESP32
@@ -59,6 +62,7 @@ sensor:
   # Power
   - platform: template
     name: ${devicename} Power
+    icon: mdi:flash
     id: power
     lambda: |-
       return id(current).state * 5; // A * 5V
@@ -73,6 +77,7 @@ sensor:
   - platform: total_daily_energy
     name: "${devicename} Energy"
     power_id: power
+    icon: mdi:lightning-bolt
     filters:
       # Multiplication factor from W to kW is 0.001
       - multiply: 0.001
@@ -81,10 +86,3 @@ sensor:
     device_class: energy
     state_class: total_increasing
     method: ${energy_method}
-
-
-
-
-
-
-

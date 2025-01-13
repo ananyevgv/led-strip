@@ -19,6 +19,7 @@ substitutions:
   num_leds: "256"
   type_leds: "GRB"                                 # порядок цветов на ленте. Если цвет отображается некорректно - меняйте. Начать можно с RGB
   leds_current_limit: "3"                          # лимит по току в амперах, автоматически управляет яркостью (пожалей свой блок питания!) 0 - выключить лимит
+  interval_random: "1 min"                            # Интервал смены эффекта
 
 # Поправить в constants.h
 #define WIDTH                 (32U)                         // ширина матрицы
@@ -278,6 +279,42 @@ button:
               call.set_effect(curr_idx + 1);
             }
             call.perform();
+
+switch:
+  # Random Mode Settings
+  - platform: gpio
+    name: ${devicename} Random Mode
+    icon: mdi:shuffle
+    id: random_mode
+    pin: 32
+
+
+interval:
+  - interval: ${interval_random} 
+    then:
+      - lambda: |-
+          if (!id(random_mode).state) {
+            return;
+          }
+
+          auto effects = id(${led_id})->get_effects();
+          uint8_t total = effects.size();
+          std::string curr_effect = id(${led_id})->get_effect_name();
+
+          uint8_t rand;
+          do
+          {
+            rand = random(total) + 1;
+          } while (
+                    effects[rand]->get_name() == "None" ||
+                    effects[rand]->get_name() == curr_effect
+                  );
+
+          // Set random effect
+          auto call = id(${led_id})->turn_on();
+          call.set_effect(rand);
+          call.perform();
+
 
 light:
   - platform: neopixelbus

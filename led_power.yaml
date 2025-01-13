@@ -1,5 +1,5 @@
 substitutions:
-  energy_method: left
+  energy_method: trapezoid
 
 number:
   - platform: template

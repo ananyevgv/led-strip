@@ -68,7 +68,7 @@ packages:
   led_power: !include packages/led_power.yaml
 
 
-number: 
+number:
   - platform: template
     name: ${devicename} Fastled Speed
     min_value: 0 #!lambda "return (float) id(min_speed).state;"
@@ -80,6 +80,7 @@ number:
     initial_value: 128
     mode: slider
     entity_category: config
+    icon: mdi:speedometer-medium
     on_value: 
     - if: 
         condition:
@@ -107,6 +108,7 @@ number:
     initial_value: 128
     mode: slider
     entity_category: config
+    icon: mdi:link-variant
     on_value: 
     - if: 
         condition:
@@ -129,55 +131,82 @@ text_sensor:
   - platform: wifi_info
     ip_address:
       name: "${devicename} IP Address"
+      disabled_by_default: true
+      entity_category: diagnostic
       icon: mdi:ip
     ssid:
       name: "${devicename} SSID"
       icon: mdi:access-point-network
+      disabled_by_default: true
+      entity_category: diagnostic
     mac_address:
       name: "${devicename} Mac"
-      icon: mdi:lan
-  
+      disabled_by_default: true
+      entity_category: diagnostic
+      icon: mdi:console-network
+
 sensor:
+  - platform: internal_temperature
+    name: ${devicename} Device Temperature
+    entity_category: diagnostic
+    icon: mdi:coolant-temperature
+    device_class: temperature
+    disabled_by_default: true
+
   - platform: wifi_signal
     name: "${devicename} Wifi"
     update_interval: 60s  
     id: wifi_signal_db
-    entity_category: "diagnostic"
+    entity_category: diagnostic
+    icon: mdi:signal
+    disabled_by_default: true
+
   - platform: copy # Reports the WiFi signal strength in %
     source_id: wifi_signal_db
     name: "${devicename} WiFi Percent"
     filters:
       - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
     unit_of_measurement: "%"
-    entity_category: "diagnostic"
+    entity_category: diagnostic
+    icon: mdi:cloud-percent-outline
 
   - platform: template
     name: ${devicename} speed_min
     id: speed_min
     lambda: "return 0;"
     update_interval: never
+    disabled_by_default: true
+    icon: mdi:speedometer-slow
 
   - platform: template
     name: ${devicename} speed_max
     id: speed_max
     lambda: "return 255;"
     update_interval: never
+    disabled_by_default: true
+    icon: mdi:speedometer
 
   - platform: template
     name: ${devicename} variant_min
     id: variant_min
     lambda: "return 0;"
     update_interval: never
+    disabled_by_default: true
+    icon: mdi:link-variant-minus
 
   - platform: template
     name: ${devicename} variant_max
     id: variant_max
     lambda: "return 255;"
     update_interval: never
+    disabled_by_default: true
+    icon: mdi:link-variant-plus
     
 binary_sensor:
   - platform: gpio
-    name: "${devicename} Led"
+    name: "${devicename} next effect"
+    disabled_by_default: true
+    icon: mdi:skip-forward
     pin:
       number: 39
       inverted: True
@@ -214,9 +243,12 @@ binary_sensor:
 button:
   - platform: restart
     name: "${devicename} restart"
+    entity_category: diagnostic
+    icon: mdi:restart
 
   - platform: template
     name: "${devicename} next effect"
+    icon: mdi:skip-forward
     on_press:
       then:
         - lambda: !<!lambda> |-
@@ -256,6 +288,7 @@ light:
     name: ${upper_devicename}
     color_correct: [$color_correct_bright, $color_correct_bright, $color_correct_bright]
     variant: ${led_chipset}
+    icon: mdi:lava-lamp
     effects:
 ############################################## 
 # Бeлый cвeт
@@ -1366,7 +1399,7 @@ light:
 #            gyver_lamp.ShowFrame(EFF_SAND, current_color, &it);
 #            
 ############################################## 
-            
+ 
 time:
   - platform: sntp
     id: esp_time

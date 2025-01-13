@@ -45,7 +45,7 @@ sensor:
         */
       }
     
-      current = current / 1000; // A - 1000mA
+      current = current * id(${led_id}).remote_values.get_brightness() / 1000; // A - 1000mA
       if (id(power_supply).state > 0.0 && current > id(power_supply).state)
       {
         current = id(power_supply).state;

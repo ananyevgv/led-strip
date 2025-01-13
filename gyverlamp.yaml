@@ -211,36 +211,59 @@ binary_sensor:
     pin:
       number: 39
       inverted: True
-    on_click:
-      then:
-        - lambda: !<!lambda> |-
-            uint32_t total = id(${led_id})->get_effects().size();
-            uint32_t curr_idx = 0;
-            uint32_t i = 0;
-            std::string curr_effect = id(${led_id})->get_effect_name();
-            auto call = id(${led_id})->turn_on();
+    on_multi_click:
+      # Short click
+      - timing:
+          - ON for at most 1000ms
+          - OFF for at least 500ms
+        then:
+          - light.toggle: ${led_id}
 
-            // set first effect in list
-            if (strcasecmp(curr_effect.c_str(), "none") == 0) {
-              call.set_effect(1);
+      # Double click
+      - timing:
+          - ON for at most 1000ms
+          - OFF for at most 500ms
+          - ON for 50ms to 1000ms
+          - OFF for at least 200ms
+        then:
+          - lambda: !<!lambda> |-
+              uint32_t total = id(${led_id})->get_effects().size();
+              uint32_t curr_idx = 0;
+              uint32_t i = 0;
+              std::string curr_effect = id(${led_id})->get_effect_name();
+              auto call = id(${led_id})->turn_on();
+
+              // set first effect in list
+              if (strcasecmp(curr_effect.c_str(), "none") == 0) {
+                call.set_effect(1);
+                call.perform();
+
+                return;
+              }
+
+              for (auto *effect : id(${led_id})->get_effects()) {
+                i++;
+                if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
+                  curr_idx = i;
+              }
+
+              if (curr_idx == total) {
+                call.set_effect(0);
+              } else {
+                call.set_effect(curr_idx + 1);
+              }
               call.perform();
-
-              return;
-            }
-
-            for (auto *effect : id(${led_id})->get_effects()) {
-              i++;
-              if (strcasecmp(effect->get_name().c_str(), curr_effect.c_str()) == 0)
-                curr_idx = i;
-            }
-
-            if (curr_idx == total) {
-              call.set_effect(0);
-            } else {
-              call.set_effect(curr_idx + 1);
-            }
-            call.perform();
-
+      # Triple click
+      - timing:
+          - ON for at most 1000ms
+          - OFF for at most 500ms
+          - ON for 50ms to 1000ms
+          - OFF for at most 500ms
+          - ON for 50ms to 1000ms
+          - OFF for at least 200ms
+        then:
+          - switch.toggle: random_mode
+          
 button:
   - platform: restart
     name: "${devicename} restart"

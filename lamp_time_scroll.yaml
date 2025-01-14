@@ -113,8 +113,8 @@ display:
       // Выводим часы
       if (h != hk)   {
         static int hi = 0;
-        it.printf(WIDTH/4+2, hi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", h );
-        it.printf(WIDTH/4+2, hi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", hk );
+        it.printf(WIDTH/4+WIDTH/8, hi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", h );
+        it.printf(WIDTH/4+WIDTH/8, hi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", hk );
         hi++;
         if (hi == 8) {
           hi = 0;
@@ -122,7 +122,7 @@ display:
         }
       }  
       else
-        it.printf(WIDTH/4+2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", h );
+        it.printf(WIDTH/4+WIDTH/8, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", h );
 
       // Выводим десятки часов
       if ( HD != HDk )   {
@@ -142,8 +142,8 @@ display:
       // Выводим минуты
       if (m != mk)   {
         static int mi = 0;
-        it.printf(WIDTH/2+WIDTH/4+2,mi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", m );
-        it.printf(WIDTH/2+WIDTH/4+2, mi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", mk );
+        it.printf(WIDTH/2+WIDTH/4+WIDTH/8,mi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", m );
+        it.printf(WIDTH/2+WIDTH/4+WIDTH/8, mi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", mk );
         mi++;
         if (mi == 8) {
           mi = 0;
@@ -151,7 +151,7 @@ display:
         }
       }  
       else
-        it.printf(WIDTH/2+WIDTH/4+2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", m );
+        it.printf(WIDTH/2+WIDTH/4+WIDTH/8, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", m );
 
       // Выводим десятки минут
       if (MD != MDk)   {

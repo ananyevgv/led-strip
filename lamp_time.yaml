@@ -58,7 +58,7 @@ light:
           id: ${led_id}
 # https://github.com/keshikan/DSEG/tree/master/src          
 font:
-  - file: "font/DSEG7Classic-Bold.ttf"
+  - file: https://github.com/trip5/Matrix-Fonts/raw/refs/heads/main/8-series/MatrixChunky8.ttf
     id: px8_font
     size: 8
     glyphs: |-
@@ -80,6 +80,6 @@ display:
       static int i = 0;
       i++;
       if ((i % 2) == 0) 
-        it.strftime(WIDTH/2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%H %M", id(matrix_lamp_time).now());
-      else
-        it.strftime(WIDTH/2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%H:%M", id(matrix_lamp_time).now());
+        it.print(WIDTH/2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, ":");
+      it.strftime(WIDTH/4, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%H", id(matrix_lamp_time).now());
+      it.strftime(WIDTH/2+WIDTH/4, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%M", id(matrix_lamp_time).now());

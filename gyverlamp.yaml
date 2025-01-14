@@ -67,7 +67,8 @@ wifi:
 
 packages:
   led_power: !include packages/led_power.yaml
-
+  time: !include packages/lamp_time.yaml
+  timezone: !include packages/lamp_timezone.yaml
 
 number:
   - platform: template
@@ -1460,20 +1461,7 @@ light:
 #            
 ############################################## 
  
-time:
-  - platform: sntp
-    id: esp_time
-    update_interval: 1h
-    servers:
-   #  - 192.168.0.108
-     - 0.pool.ntp.org
-    on_time_sync:
-      then:
-        if:
-          condition:
-            time.has_time:
-          then:
-            - logger.log: Time has been set and is valid!
+
 
 web_server:
   port: 80

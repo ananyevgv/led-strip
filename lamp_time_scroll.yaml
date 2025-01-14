@@ -1,0 +1,169 @@
+# Time from SNTP
+time:
+  - platform: sntp
+    id: matrix_lamp_time
+    #timezone: Europe/Moscow
+    servers:
+     - 0.pool.ntp.org
+    on_time_sync:
+      then:
+        - if:
+            condition:
+              time.has_time:
+            then:
+              - logger.log: Time has been set and is valid!
+        - if:
+            condition:
+              - time.has_time:
+              - light.is_off: ${led_id}
+            then:
+              - lambda: |-
+                  id(neopixel_display).set_enabled(true);
+
+
+light:
+  - id: !extend ${led_id}
+    on_turn_on:
+      - lambda: |-
+          id(neopixel_display).set_enabled(false);
+      - light.turn_off:
+          id: color_clock
+
+    on_turn_off:
+      - if:
+          condition:
+            - time.has_time:
+          then:
+            - lambda: |-
+                id(neopixel_display).set_enabled(true);
+      - light.turn_on:
+          id: color_clock
+          brightness: 50%
+          red: 0%
+          green: 100%
+          blue: 0%
+
+
+  - platform: neopixelbus
+    pin: 27
+    num_leds: 1
+    icon: mdi:clock-digital
+    name: Color clock
+    color_correct: [$color_correct_bright, $color_correct_bright, $color_correct_bright]
+    id: color_clock
+    type: GRB
+    variant: 800KBPS  # WS2812 (same as 800KBPS)
+    on_turn_on:
+      - light.turn_off:
+          id: ${led_id}
+          
+font:
+  - file: https://github.com/trip5/Matrix-Fonts/raw/refs/heads/main/8-series/MatrixChunky8.ttf
+    id: px8_font
+    size: 8
+    glyphs: |-
+      01234:56789 
+
+display:
+  - platform: addressable_light
+    id: neopixel_display
+    addressable_light_id: ${led_id}
+    width: 32
+    height: 8
+    #brightness: 0.7
+    pixel_mapper: |-
+      return XY(x, y);
+    rotation: 180°
+    update_interval: 0.25 s
+    lambda: |-
+      auto font_color = Color(id(color_clock).remote_values.get_red()*255,id(color_clock).remote_values.get_green()*255 ,id(color_clock).remote_values.get_blue()*255 );
+      
+      
+
+      //точки
+      static int i = 0;
+      i++;
+      if ( i <= 4)  {
+        it.print(WIDTH/2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, ":");
+      }
+      else 
+        if ( i == 8)
+          i = 0;
+      // Разбираем Часы
+      uint8_t HH = (id(matrix_lamp_time).now().hour);
+      uint8_t HD = HH / 10;
+      uint8_t h = HH % 10;
+      static uint8_t HDk;
+      static uint8_t hk;
+
+      // Разбираем минуты
+      uint8_t MM = (id(matrix_lamp_time).now().minute);
+      uint8_t MD = MM / 10;
+      uint8_t m = MM % 10;
+      static uint8_t MDk;
+      static uint8_t mk;
+
+      // Разбираем секунды
+      //uint8_t SS = (id(matrix_lamp_time).now().second);
+      //uint8_t SD = SS / 10;
+      //uint8_t s = SS % 10;
+      //static uint8_t SDk = 0;
+      //static uint8_t sk = 0;
+
+      // Выводим часы
+      if (h != hk)   {
+        static int hi = 0;
+        it.printf(WIDTH/4+2, hi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", h );
+        it.printf(WIDTH/4+2, hi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", hk );
+        hi++;
+        if (hi == 8) {
+          hi = 0;
+          hk = h;
+        }
+      }  
+      else
+        it.printf(WIDTH/4+2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", h );
+
+      // Выводим десятки часов
+      if ( HD != HDk )   {
+        static int HDi = 0;
+        it.printf(WIDTH/8, HDi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%u", HD );
+        it.printf(WIDTH/8, HDi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", HDk );
+        HDi++;
+        if (HDi == 8) {
+          HDi = 0;
+          HDk = HD;
+        }
+      }  
+      else
+        it.printf(WIDTH/8, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", HD );
+
+
+      // Выводим минуты
+      if (m != mk)   {
+        static int mi = 0;
+        it.printf(WIDTH/2+WIDTH/4+2,mi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", m );
+        it.printf(WIDTH/2+WIDTH/4+2, mi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", mk );
+        mi++;
+        if (mi == 8) {
+          mi = 0;
+          mk = m;
+        }
+      }  
+      else
+        it.printf(WIDTH/2+WIDTH/4+2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", m );
+
+      // Выводим десятки минут
+      if (MD != MDk)   {
+        static int MDi = 0;
+        it.printf(WIDTH/2+WIDTH/8+2, MDi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MD );
+        it.printf(WIDTH/2+WIDTH/8+2, MDi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MDk );
+        MDi++;
+        if (MDi == 8) {
+          MDi = 0;
+          MDk = MD;
+        }
+      }  
+      else
+        it.printf(WIDTH/2+WIDTH/8+2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MD );
+      

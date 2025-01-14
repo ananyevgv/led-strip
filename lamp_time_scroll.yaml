@@ -156,8 +156,8 @@ display:
       // Выводим десятки минут
       if (MD != MDk)   {
         static int MDi = 0;
-        it.printf(WIDTH/2+WIDTH/8+2, MDi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MD );
-        it.printf(WIDTH/2+WIDTH/8+2, MDi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MDk );
+        it.printf(WIDTH/2+WIDTH/8, MDi-HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MD );
+        it.printf(WIDTH/2+WIDTH/8, MDi+HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MDk );
         MDi++;
         if (MDi == 8) {
           MDi = 0;
@@ -165,5 +165,5 @@ display:
         }
       }  
       else
-        it.printf(WIDTH/2+WIDTH/8+2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MD );
+        it.printf(WIDTH/2+WIDTH/8, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER,"%u", MD );
       

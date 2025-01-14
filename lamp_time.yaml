@@ -56,7 +56,7 @@ light:
     on_turn_on:
       - light.turn_off:
           id: ${led_id}
-          
+# https://github.com/keshikan/DSEG/tree/master/src          
 font:
   - file: "font/DSEG7Classic-Bold.ttf"
     id: px8_font

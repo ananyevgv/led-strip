@@ -68,6 +68,7 @@ wifi:
 packages:
   led_power: !include packages/led_power.yaml
   time: !include packages/lamp_time.yaml
+  # time: !include packages/lamp_time_scroll.yaml
   timezone: !include packages/lamp_timezone.yaml
 
 number:

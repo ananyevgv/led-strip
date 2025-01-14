@@ -1,0 +1,85 @@
+# Time from SNTP
+time:
+  - platform: sntp
+    id: matrix_lamp_time
+    #timezone: Europe/Moscow
+    servers:
+     - 0.pool.ntp.org
+    on_time_sync:
+      then:
+        - if:
+            condition:
+              time.has_time:
+            then:
+              - logger.log: Time has been set and is valid!
+        - if:
+            condition:
+              - time.has_time:
+              - light.is_off: ${led_id}
+            then:
+              - lambda: |-
+                  id(neopixel_display).set_enabled(true);
+
+
+light:
+  - id: !extend ${led_id}
+    on_turn_on:
+      - lambda: |-
+          id(neopixel_display).set_enabled(false);
+      - light.turn_off:
+          id: color_clock
+
+    on_turn_off:
+      - if:
+          condition:
+            - time.has_time:
+          then:
+            - lambda: |-
+                id(neopixel_display).set_enabled(true);
+      - light.turn_on:
+          id: color_clock
+          brightness: 50%
+          red: 0%
+          green: 100%
+          blue: 0%
+
+
+  - platform: neopixelbus
+    pin: 27
+    num_leds: 1
+    icon: mdi:clock-digital
+    name: Color clock
+    color_correct: [$color_correct_bright, $color_correct_bright, $color_correct_bright]
+    id: color_clock
+    type: GRB
+    variant: 800KBPS  # WS2812 (same as 800KBPS)
+    on_turn_on:
+      - light.turn_off:
+          id: ${led_id}
+          
+font:
+  - file: "font/DSEG7Classic-Bold.ttf"
+    id: px8_font
+    size: 8
+    glyphs: |-
+      01234:56789 
+
+display:
+  - platform: addressable_light
+    id: neopixel_display
+    addressable_light_id: ${led_id}
+    width: 32
+    height: 8
+    #brightness: 0.7
+    pixel_mapper: |-
+      return XY(x, y);
+    rotation: 180°
+    update_interval: 1s
+    lambda: |-
+      auto font_color = Color(id(color_clock).remote_values.get_red()*255,id(color_clock).remote_values.get_green()*255 ,id(color_clock).remote_values.get_blue()*255 );
+      static int i = 0;
+      i++;
+      if ((i % 2) == 0) 
+        it.strftime(WIDTH/2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%H %M", id(matrix_lamp_time).now());
+      else
+        it.strftime(WIDTH/2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%H:%M", id(matrix_lamp_time).now());

@@ -44,15 +44,15 @@ light:
           blue: 0%
 
 
-  - platform: neopixelbus
+  - platform: esp32_rmt_led_strip
     pin: 27
     num_leds: 1
-    icon: mdi:clock-digital
     name: Color clock
-    color_correct: [$color_correct_bright, $color_correct_bright, $color_correct_bright]
     id: color_clock
-    type: GRB
-    variant: 800KBPS  # WS2812 (same as 800KBPS)
+    icon: mdi:clock-digital
+    rgb_order: GRB
+    chipset: WS2812
+    rmt_channel: 0
     on_turn_on:
       - light.turn_off:
           id: ${led_id}

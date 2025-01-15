@@ -83,3 +83,6 @@ display:
         it.print(WIDTH/2, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, ":");
       it.strftime(WIDTH/4, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%H", id(matrix_lamp_time).now());
       it.strftime(WIDTH/2+WIDTH/4, HEIGHT/2, id(px8_font), font_color, TextAlign::CENTER, "%M", id(matrix_lamp_time).now());
+      
+      auto clock_br = id(color_clock).remote_values.get_brightness();
+      id(neopixel_display)->get_light()->set_correction(clock_br, clock_br, clock_br);

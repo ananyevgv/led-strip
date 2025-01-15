@@ -56,7 +56,11 @@ light:
     on_turn_on:
       - light.turn_off:
           id: ${led_id}
-                   
+    on_turn_off:
+      - lambda: |-
+          id(neopixel_display)->get_light()->set_correction(1.0, 1.0, 1.0);
+      - light.turn_on:
+          id: ${led_id}            
 font:
   - file: https://github.com/trip5/Matrix-Fonts/raw/refs/heads/main/8-series/MatrixChunky8.ttf
     id: px8_font

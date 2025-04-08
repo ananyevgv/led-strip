@@ -1,5 +1,13 @@
 # Audio reactive LedStrip, GyverLamp, Fastled  Atom Lite Esphome + Light Effects
 
+[![License][license-shield]][license]
+[![ESPHome release][esphome-release-shield]][esphome-release]
+
+[license-shield]: https://img.shields.io/static/v1?label=License&message=MIT&color=orange&logo=license
+[license]: https://opensource.org/licenses/MIT
+[esphome-release-shield]: https://img.shields.io/static/v1?label=ESPHome&message=2025.3&color=green&logo=esphome
+[esphome-release]: https://GitHub.com/esphome/esphome/releases/
+
 <img src="https://github.com/ananyevgv/led-strip/blob/main/atom.jpg" height="300" alt="Atom lite">
 
 
